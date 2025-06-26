@@ -17,21 +17,28 @@ type ServerConfig struct {
 }
 
 func LoadServerConfig() *ServerConfig {
-	var address string
-	var idleTimeout, readTimeout, writeTimeout time.Duration
-
-	if util.IsDevEnv() {
-		address = "localhost:8080"
-		idleTimeout = time.Minute
-		readTimeout = 10 * time.Second
-		writeTimeout = 30 * time.Second
-	}
+	address := "localhost:8080"
+	idleTimeout := time.Minute
+	readTimeout := 10 * time.Second
+	writeTimeout := 30 * time.Second
 
 	if util.IsProdEnv() {
-		address = "localhost:" + os.Getenv(common.PORT_KEY)
-		idleTimeout = toDurationSeconds(os.Getenv(common.IDLE_TIMEOUT_SEC_KEY))
-		readTimeout = toDurationSeconds(os.Getenv(common.READ_TIMEOUT_SEC_KEY))
-		writeTimeout = toDurationSeconds(os.Getenv(common.WRITE_TIMEOUT_SEC_KEY))
+		address = "0.0.0.0:" + os.Getenv(common.PORT_KEY)
+
+		idleTimeoutSecondsValue, err := strconv.Atoi(os.Getenv(common.IDLE_TIMEOUT_SEC_KEY))
+		if nil == err {
+			idleTimeout = time.Duration(idleTimeoutSecondsValue) * time.Second
+		}
+
+		readTimeoutSecondsValue, err := strconv.Atoi(os.Getenv(common.READ_TIMEOUT_SEC_KEY))
+		if nil == err {
+			readTimeout = time.Duration(readTimeoutSecondsValue) * time.Second
+		}
+
+		writeTimeoutSecondsValue, err := strconv.Atoi(os.Getenv(common.WRITE_TIMEOUT_SEC_KEY))
+		if nil == err {
+			writeTimeout = time.Duration(writeTimeoutSecondsValue) * time.Second
+		}
 	}
 
 	return &ServerConfig{
@@ -40,12 +47,4 @@ func LoadServerConfig() *ServerConfig {
 		ReadTimeout:  readTimeout,
 		WriteTimeout: writeTimeout,
 	}
-}
-
-func toDurationSeconds(secondsString string) time.Duration {
-	seconds, err := strconv.Atoi(secondsString)
-	if err != nil {
-		return 0
-	}
-	return time.Duration(seconds) * time.Second
 }

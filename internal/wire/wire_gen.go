@@ -8,11 +8,24 @@ package wire
 
 import (
 	"github.com/ahleongzc/leetcode-live-backend/cmd/app"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
+	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 )
 
 // Injectors from wire.go:
 
 func InitializeApplication() (*app.Application, error) {
-	application := app.NewApplication()
+	databaseConfig := config.LoadDatabaseConfig()
+	db, err := infra.NewPostgresDatabase(databaseConfig)
+	if err != nil {
+		return nil, err
+	}
+	sessionRepo := repo.NewSessionRepoImpl(db)
+	authService := service.NewAuthService(sessionRepo)
+	authHandler := handler.NewAuthHandler(authService)
+	application := app.NewApplication(authHandler)
 	return application, nil
 }
