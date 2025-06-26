@@ -12,6 +12,7 @@ import (
 
 type SessionRepo interface {
 	Create(ctx context.Context, session *entity.Session) error
+	Update(ctx context.Context, session *entity.Session) error
 	GetByID(ctx context.Context, ID string) (*entity.Session, error)
 	DeleteByID(ctx context.Context, ID string) error
 }
@@ -28,7 +29,37 @@ type SessionRepoImpl struct {
 	db *sql.DB
 }
 
-// DeleteSessionByID implements SessionRepo.
+// Update implements SessionRepo.
+func (s *SessionRepoImpl) Update(ctx context.Context, session *entity.Session) error {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	args := []any{session.UserID, session.ExpireTimestampMS, session.ID}
+
+	query := fmt.Sprintf(`
+        UPDATE %s 
+        SET user_id = $1, expire_timestamp_ms = $2
+        WHERE id = $3
+    `, common.SESSION_TABLE_NAME)
+
+	result, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("unable to update session with id %s, %s: %w", session.ID, err.Error(), common.ErrInternalServerError)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("unable to get rows affected when updating session with id %s, %s: %w", session.ID, err.Error(), common.ErrInternalServerError)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("unable to update session with id %s: %w", session.ID, common.ErrInternalServerError)
+	}
+
+	return nil
+}
+
+// DeleteByID implements SessionRepo.
 func (s *SessionRepoImpl) DeleteByID(ctx context.Context, ID string) error {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
@@ -40,15 +71,24 @@ func (s *SessionRepoImpl) DeleteByID(ctx context.Context, ID string) error {
 		WHERE id = $1
 	`, common.SESSION_TABLE_NAME)
 
-	_, err := s.db.ExecContext(ctx, query, args...)
+	result, err := s.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return fmt.Errorf("unable to delete session with id %s, %s: %w", ID, err.Error(), common.ErrInternalServerError)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("unable to get rows affected when deleting session with id %s, %s: %w", ID, err.Error(), common.ErrInternalServerError)
+	}
+
+	if rowsAffected == 0 {
+		return fmt.Errorf("unable to delete session with id %s: %w", ID, common.ErrNotFound)
 	}
 
 	return nil
 }
 
-// CreateSession implements SessionRepo.
+// Create implements SessionRepo.
 func (s *SessionRepoImpl) Create(ctx context.Context, session *entity.Session) error {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
@@ -70,7 +110,7 @@ func (s *SessionRepoImpl) Create(ctx context.Context, session *entity.Session) e
 	return nil
 }
 
-// GetSessionByID implements SessionRepo.
+// GetByID implements SessionRepo.
 func (s *SessionRepoImpl) GetByID(ctx context.Context, ID string) (*entity.Session, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
