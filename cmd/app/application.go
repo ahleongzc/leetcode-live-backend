@@ -9,31 +9,33 @@ import (
 )
 
 type Application struct {
-	authHandler   *handler.AuthHandler
-	healthHandler *handler.HealthHandler
-	middleware    *middleware.Middleware
+	authHandler      *handler.AuthHandler
+	healthHandler    *handler.HealthHandler
+	interviewHandler *handler.InterviewHandler
+	middleware       *middleware.Middleware
 }
 
 func NewApplication(
 	authHandler *handler.AuthHandler,
 	healthHandler *handler.HealthHandler,
+	interviewHandler *handler.InterviewHandler,
 	middleware *middleware.Middleware,
 ) *Application {
 	return &Application{
-		authHandler:   authHandler,
-		healthHandler: healthHandler,
-		middleware:    middleware,
+		authHandler:      authHandler,
+		healthHandler:    healthHandler,
+		interviewHandler: interviewHandler,
+		middleware:       middleware,
 	}
 }
 
 func (a *Application) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	// Health
 	mux.HandleFunc("GET /v1/health", a.healthHandler.HealthCheck)
-
-	// Auth
 	mux.HandleFunc("POST /v1/login", a.authHandler.Login)
+	mux.HandleFunc("GET /v1/start-interview", a.authHandler.Login)
+
 	return alice.New(
 		a.middleware.RecoverPanic,
 		a.middleware.CORS,

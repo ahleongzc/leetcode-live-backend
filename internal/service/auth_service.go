@@ -11,7 +11,7 @@ type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
 	Logout(ctx context.Context, sessionID string) error
 	Register(ctx context.Context, email, password string) error
-	CheckIsLoggedIn(ctx context.Context, sessionID string) (bool, error)
+	ValidateSession(ctx context.Context, sessionID string) (bool, error)
 }
 
 func NewAuthService(
@@ -27,7 +27,7 @@ type AuthServiceImpl struct {
 }
 
 // CheckIsLoggedIn implements AuthService.
-func (a *AuthServiceImpl) CheckIsLoggedIn(ctx context.Context, sessionID string) (bool, error) {
+func (a *AuthServiceImpl) ValidateSession(ctx context.Context, sessionID string) (bool, error) {
 	session, err := a.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
 		return false, err

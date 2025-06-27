@@ -7,7 +7,7 @@ import (
 )
 
 type Voice string
-type Model string
+type TTSModel string
 
 const (
 	Alloy   Voice = "alloy"
@@ -21,12 +21,12 @@ const (
 	Sage    Voice = "sage"
 	Shimmer Voice = "shimmer"
 
-	TTS_1    Model = "tts-1"
-	TTS_1_HD Model = "tts-1-hd"
+	TTS_1    TTSModel = "tts-1"
+	TTS_1_HD TTSModel = "tts-1-hd"
 )
 
 type TTSConfig struct {
-	Model  Model
+	Model  TTSModel
 	Voice  Voice
 	URL    string
 	APIKey string

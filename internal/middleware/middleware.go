@@ -22,16 +22,26 @@ func NewMiddleware(logger zerolog.Logger) *Middleware {
 }
 
 func (m *Middleware) CORS(next http.Handler) http.Handler {
+	var trustedOrigins map[string]struct{}
+
+	if util.IsDevEnv() {
+		trustedOrigins = common.DEV_TRUSTED_ORIGINS
+	}
+
+	if util.IsProdEnv() {
+		trustedOrigins = common.PROD_TRUSTED_ORIGINS
+	}
+
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-
-		if _, exists := common.TRUSTED_ORIGINS[origin]; !exists {
-			handler.HandleErrorResponse(w, fmt.Errorf("origin now allowed %w", common.ErrForbidden))
+		if _, exists := trustedOrigins[origin]; !exists {
+			handler.HandleErrorResponse(w, common.ErrForbidden)
 			return
 		}
 
 		w.Header().Set("Access-Control-Allow-Origin", origin)
-		w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, %s, %s, %s, %s", http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions))
+		w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, %s, %s, %s, %s",
+			http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions))
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Content-Length")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 

@@ -27,17 +27,11 @@ func InitializeApplication() (*app.Application, error) {
 	sessionRepo := repo.NewSessionRepo(db)
 	authService := service.NewAuthService(sessionRepo)
 	authHandler := handler.NewAuthHandler(authService)
-	ttsConfig := config.LoadTTSConfig()
-	tts := infra.NewTTS(ttsConfig)
-	objectStorageConfig := config.LoadObjectStorageConfig()
-	client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
-	if err != nil {
-		return nil, err
-	}
-	fileRepo := repo.NewFileRepo(client, objectStorageConfig)
-	healthHandler := handler.NewHealthHandler(tts, fileRepo)
+	healthHandler := handler.NewHealthHandler()
+	websocketConfig := config.LoadWebsocketConfig()
+	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService)
 	logger := infra.NewZerologLogger()
 	middlewareMiddleware := middleware.NewMiddleware(logger)
-	application := app.NewApplication(authHandler, healthHandler, middlewareMiddleware)
+	application := app.NewApplication(authHandler, healthHandler, interviewHandler, middlewareMiddleware)
 	return application, nil
 }

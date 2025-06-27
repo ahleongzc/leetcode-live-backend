@@ -57,10 +57,13 @@ const (
 )
 
 var (
-	TRUSTED_ORIGINS = map[string]struct{}{
-		// Development
+	DEV_TRUSTED_ORIGINS = map[string]struct{}{
 		"localhost": {},
 		"0.0.0.0":   {},
 		"":          {},
+	}
+
+	PROD_TRUSTED_ORIGINS = map[string]struct{}{
+		"https://leetcode.com": {},
 	}
 )

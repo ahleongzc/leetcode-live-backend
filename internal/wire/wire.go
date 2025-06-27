@@ -20,24 +20,27 @@ func InitializeApplication() (*app.Application, error) {
 		// Handler
 		handler.NewAuthHandler,
 		handler.NewHealthHandler,
+		handler.NewInterviewHandler,
 
 		// Service
 		service.NewAuthService,
 
 		// Repo
 		repo.NewSessionRepo,
-		repo.NewFileRepo,
+		// repo.NewFileRepo,
 
 		// Infra
-		infra.NewTTS,
+		// infra.NewTTS,
+		// infra.NewLLM,
 		infra.NewPostgresDatabase,
 		infra.NewZerologLogger,
-		infra.NewCloudflareR2ObjectStorageClient,
+		// infra.NewCloudflareR2ObjectStorageClient,
 
 		// Config
 		config.LoadDatabaseConfig,
-		config.LoadObjectStorageConfig,
-		config.LoadTTSConfig,
+		// config.LoadObjectStorageConfig,
+		// config.LoadTTSConfig,
+		config.LoadWebsocketConfig,
 
 		// Middleware
 		middleware.NewMiddleware,
