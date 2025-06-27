@@ -22,8 +22,10 @@ type TTS interface {
 
 func NewTTS(config *config.TTSConfig) TTS {
 	return &TTSImpl{
-		config:     config,
-		httpClient: &http.Client{},
+		config: config,
+		httpClient: &http.Client{
+			Timeout: common.TTS_REQUEST_TIMEOUT,
+		},
 	}
 }
 
@@ -33,9 +35,6 @@ type TTSImpl struct {
 }
 
 func (t *TTSImpl) TextToSpeechReader(ctx context.Context, text string, instruction string) (io.Reader, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.TTS_REQUEST_TIMEOUT)
-	defer cancel()
-
 	req, err := t.setUpRequest(ctx, text, instruction)
 	if err != nil {
 		return nil, err

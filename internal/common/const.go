@@ -24,7 +24,7 @@ const (
 	DB_MAX_OPEN_CONN_KEY     string        = "POSTGRES_MAX_OPEN_CONN"
 	DB_MAX_IDLE_CONN_KEY     string        = "POSTGRES_MAX_IDLE_CONN"
 	DB_MAX_IDLE_TIME_SEC_KEY string        = "POSTGRES_MAX_IDLE_TIME_SEC"
-	DB_QUERY_TIMEOUT         time.Duration = 1 * time.Second
+	DB_QUERY_TIMEOUT         time.Duration = time.Second
 
 	// Cloudflare R2
 	R2_ACCESS_KEY                 string        = "R2_ACCESS_KEY"
@@ -32,12 +32,15 @@ const (
 	R2_ENDPOINT_KEY               string        = "R2_ENDPOINT"
 	R2_BUCKET_KEY                 string        = "R2_BUCKET"
 	R2_REGION_KEY                 string        = "R2_REGION"
-	FILE_UPLOAD_TIMEOUT           time.Duration = 1 * time.Minute
+	FILE_UPLOAD_TIMEOUT           time.Duration = time.Minute
 	PRESIGNED_URL_EXPIRY_DURATION time.Duration = 15 * time.Minute
 
 	// OpenAI
 	OPENAI_API_KEY  string = "OPENAI_API_KEY"
 	OPENAI_BASE_URL string = "https://api.openai.com"
+
+	// Ollama
+	OLLAMA_BASE_URL string = "http://localhost:11434"
 
 	// TTS
 	TTS_REQUEST_TIMEOUT time.Duration = 10 * time.Second
@@ -47,9 +50,10 @@ const (
 	USER_TABLE_NAME    string = "users"
 
 	// HTTP
-	AUTHORIZATION string = "Authorization"
-	CONTENT_TYPE  string = "Content-Type"
-	ACCEPT        string = "Accept"
+	HTTP_REQUEST_TIMEOUT time.Duration = time.Minute
+	AUTHORIZATION        string        = "Authorization"
+	CONTENT_TYPE         string        = "Content-Type"
+	ACCEPT               string        = "Accept"
 )
 
 var (

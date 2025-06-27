@@ -2,7 +2,7 @@
 .PHONY: run build gen vet fmt count
 
 run: build
-	@./bin/app
+	@air
 
 build: fmt gen
 	@go build -o=./bin/app ./cmd
