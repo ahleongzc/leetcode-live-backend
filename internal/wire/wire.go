@@ -18,18 +18,24 @@ func InitializeApplication() (*app.Application, error) {
 	wire.Build(
 		// Handler
 		handler.NewAuthHandler,
+		handler.NewHealthHandler,
 
 		// Service
 		service.NewAuthService,
 
 		// Repo
-		repo.NewSessionRepoImpl,
+		repo.NewSessionRepo,
+		repo.NewFileRepo,
 
 		// Infra
+		infra.NewTTS,
 		infra.NewPostgresDatabase,
+		infra.NewCloudflareR2ObjectStorageClient,
 
 		// Config
 		config.LoadDatabaseConfig,
+		config.LoadObjectStorageConfig,
+		config.LoadTTSConfig,
 
 		// Application
 		app.NewApplication,

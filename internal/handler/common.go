@@ -16,17 +16,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type JSONPayload map[string]any
-
-func NewJSONPayload() JSONPayload {
-	return make(map[string]any)
-}
-
-func (j JSONPayload) Add(key string, value any) {
-	j[key] = value
-}
-
-func WriteJSON(w http.ResponseWriter, payload JSONPayload, statusCode int, headers http.Header) error {
+func WriteJSON(w http.ResponseWriter, payload util.JSONPayload, statusCode int, headers http.Header) error {
 	var marshalledPayload []byte
 	var err error
 
@@ -133,28 +123,28 @@ func HandleErrorResponse(w http.ResponseWriter, err error) {
 }
 
 func dataNotFoundErrorResponse(w http.ResponseWriter, err error) {
-	payload := NewJSONPayload()
+	payload := util.NewJSONPayload()
 	payload.Add("error", err.Error())
 
 	WriteJSON(w, payload, http.StatusNotFound, nil)
 }
 
 func clientBadRequestErrorResponse(w http.ResponseWriter, err error) {
-	payload := NewJSONPayload()
+	payload := util.NewJSONPayload()
 	payload.Add("error", err.Error())
 
 	WriteJSON(w, payload, http.StatusBadRequest, nil)
 }
 
 func clientForbiddenResponse(w http.ResponseWriter) {
-	payload := NewJSONPayload()
+	payload := util.NewJSONPayload()
 	payload.Add("error", "you are unauthorized to access this resource")
 
 	WriteJSON(w, payload, http.StatusForbidden, nil)
 }
 
 func clientUnauthorizedResponse(w http.ResponseWriter) {
-	payload := NewJSONPayload()
+	payload := util.NewJSONPayload()
 	payload.Add("error", "wrong credentials")
 
 	WriteJSON(w, payload, http.StatusUnauthorized, nil)
@@ -163,7 +153,7 @@ func clientUnauthorizedResponse(w http.ResponseWriter) {
 func internalServerErrorResponse(w http.ResponseWriter, err error) {
 	log.Error().Err(err).Msg("error")
 
-	payload := NewJSONPayload()
+	payload := util.NewJSONPayload()
 	payload.Add("error", "internal server error")
 
 	w.Header().Set("Connection", "close")

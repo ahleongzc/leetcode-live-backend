@@ -17,7 +17,7 @@ type SessionRepo interface {
 	DeleteByID(ctx context.Context, ID string) error
 }
 
-func NewSessionRepoImpl(
+func NewSessionRepo(
 	db *sql.DB,
 ) SessionRepo {
 	return &SessionRepoImpl{

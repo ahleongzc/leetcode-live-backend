@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
@@ -13,12 +12,12 @@ import (
 func main() {
 	err := godotenv.Load()
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	app, err := wire.InitializeApplication()
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	serverConfig := config.LoadServerConfig()
@@ -33,6 +32,6 @@ func main() {
 
 	err = server.ListenAndServe()
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
 }

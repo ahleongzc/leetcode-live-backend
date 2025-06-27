@@ -22,16 +22,29 @@ const (
 	DB_QUERY_TIMEOUT         time.Duration = 1 * time.Second
 
 	// Cloudflare R2
-	R2_ACCESS_KEY          string        = "R2_ACCESS_KEY"
-	R2_SECRET_KEY          string        = "R2_SECRET_KEY"
-	R2_ENDPOINT_KEY        string        = "R2_ENDPOINT"
-	R2_BUCKET_KEY          string        = "R2_BUCKET"
-	R2_REGION_KEY          string        = "R2_REGION"
-	R2_FILE_UPLOAD_TIMEOUT time.Duration = 5 * time.Second
+	R2_ACCESS_KEY                 string        = "R2_ACCESS_KEY"
+	R2_SECRET_KEY                 string        = "R2_SECRET_KEY"
+	R2_ENDPOINT_KEY               string        = "R2_ENDPOINT"
+	R2_BUCKET_KEY                 string        = "R2_BUCKET"
+	R2_REGION_KEY                 string        = "R2_REGION"
+	FILE_UPLOAD_TIMEOUT           time.Duration = 1 * time.Minute
+	PRESIGNED_URL_EXPIRY_DURATION time.Duration = 15 * time.Minute
+
+	// OpenAI
+	OPENAI_API_KEY  string = "OPENAI_API_KEY"
+	OPENAI_BASE_URL string = "https://api.openai.com"
+
+	// TTS
+	TTS_REQUEST_TIMEOUT time.Duration = 10 * time.Second
 
 	// Tables
 	SESSION_TABLE_NAME string = "sessions"
 	USER_TABLE_NAME    string = "users"
+
+	// HTTP
+	AUTHORIZATION string = "Authorization"
+	CONTENT_TYPE  string = "Content-Type"
+	ACCEPT        string = "Accept"
 )
 
 var (

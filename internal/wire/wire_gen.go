@@ -23,9 +23,18 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	sessionRepo := repo.NewSessionRepoImpl(db)
+	sessionRepo := repo.NewSessionRepo(db)
 	authService := service.NewAuthService(sessionRepo)
 	authHandler := handler.NewAuthHandler(authService)
-	application := app.NewApplication(authHandler)
+	ttsConfig := config.LoadTTSConfig()
+	tts := infra.NewTTS(ttsConfig)
+	objectStorageConfig := config.LoadObjectStorageConfig()
+	client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
+	if err != nil {
+		return nil, err
+	}
+	fileRepo := repo.NewFileRepo(client, objectStorageConfig)
+	healthHandler := handler.NewHealthHandler(tts, fileRepo)
+	application := app.NewApplication(authHandler, healthHandler)
 	return application, nil
 }

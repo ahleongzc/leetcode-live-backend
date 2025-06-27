@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
 type AuthHandler struct {
@@ -42,7 +43,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	payload := NewJSONPayload()
+	payload := util.NewJSONPayload()
 	payload.Add("session_id", sessionID)
 
 	WriteJSON(w, payload, http.StatusOK, nil)

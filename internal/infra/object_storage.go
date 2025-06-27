@@ -13,8 +13,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-func NewCloudflareR2ObjectStorageClient(objectStorageConfig *internalConfig.ObjectStorageConfig) (*s3.Client, error) {
-	if objectStorageConfig != nil {
+func NewCloudflareR2ObjectStorageClient(
+	objectStorageConfig *internalConfig.ObjectStorageConfig,
+) (*s3.Client, error) {
+	if objectStorageConfig == nil {
 		return nil, fmt.Errorf("no object storage config when initialising s3 client: %w", common.ErrInternalServerError)
 	}
 

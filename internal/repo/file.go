@@ -34,20 +34,25 @@ type FileRepoImpl struct {
 	bucketName    string
 }
 
-func (f *FileRepoImpl) Upload(ctx context.Context, name string, content io.Reader, metadata map[string]any) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.R2_FILE_UPLOAD_TIMEOUT)
+func (f *FileRepoImpl) Upload(ctx context.Context, fileName string, content io.Reader, metadata map[string]any) (string, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.FILE_UPLOAD_TIMEOUT)
 	defer cancel()
 
-	res, err := f.presignClient.PresignPutObject(ctx,
-		&s3.PutObjectInput{
-			Bucket: aws.String(f.bucketName),
-			Key:    aws.String("example.txt"),
-		},
-		s3.WithPresignExpires(common.R2_FILE_UPLOAD_TIMEOUT),
-	)
-
+	_, err := f.client.PutObject(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(f.bucketName),
+		Key:    aws.String(fileName),
+		Body:   content,
+	})
 	if err != nil {
 		return "", fmt.Errorf("unable to upload file to object storage, %s: %w", err, common.ErrInternalServerError)
+	}
+
+	res, err := f.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: aws.String(f.bucketName),
+		Key:    aws.String(fileName),
+	}, s3.WithPresignExpires(common.PRESIGNED_URL_EXPIRY_DURATION))
+	if err != nil {
+		return "", fmt.Errorf("unable to generate presigned url, %s: %w", err, common.ErrInternalServerError)
 	}
 
 	return res.URL, nil
