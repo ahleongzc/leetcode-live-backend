@@ -8,6 +8,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 
@@ -30,12 +31,16 @@ func InitializeApplication() (*app.Application, error) {
 		// Infra
 		infra.NewTTS,
 		infra.NewPostgresDatabase,
+		infra.NewZerologLogger,
 		infra.NewCloudflareR2ObjectStorageClient,
 
 		// Config
 		config.LoadDatabaseConfig,
 		config.LoadObjectStorageConfig,
 		config.LoadTTSConfig,
+
+		// Middleware
+		middleware.NewMiddleware,
 
 		// Application
 		app.NewApplication,

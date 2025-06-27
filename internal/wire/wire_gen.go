@@ -11,6 +11,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 )
@@ -35,6 +36,8 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	fileRepo := repo.NewFileRepo(client, objectStorageConfig)
 	healthHandler := handler.NewHealthHandler(tts, fileRepo)
-	application := app.NewApplication(authHandler, healthHandler)
+	logger := infra.NewZerologLogger()
+	middlewareMiddleware := middleware.NewMiddleware(logger)
+	application := app.NewApplication(authHandler, healthHandler, middlewareMiddleware)
 	return application, nil
 }

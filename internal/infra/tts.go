@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
@@ -31,7 +32,6 @@ type TTSImpl struct {
 	httpClient *http.Client
 }
 
-// TextToSpeechGetReader implements TTS.
 func (t *TTSImpl) TextToSpeechReader(ctx context.Context, text string, instruction string) (io.Reader, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.TTS_REQUEST_TIMEOUT)
 	defer cancel()
@@ -77,6 +77,11 @@ func (t *TTSImpl) TextToSpeechWriteToFile(ctx context.Context, text, instruction
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("http status for tts is not ok, the status code is %d: %w", resp.StatusCode, common.ErrInternalServerError)
+	}
+
+	dir := filepath.Dir(filePath) // Gets "/tmp/abc" from "/tmp/abc/leong.mp3"
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return fmt.Errorf("unable to create directory for tts output: %w", common.ErrInternalServerError)
 	}
 
 	outputFile, err := os.Create(filePath)

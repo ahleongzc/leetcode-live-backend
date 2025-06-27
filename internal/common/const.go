@@ -2,7 +2,12 @@ package common
 
 import "time"
 
+type ContextKey string
+
 const (
+	// Context
+	REQUEST_TIMESTAMP_MS_CONTEXT_KEY ContextKey = "requestTimestampMS"
+
 	// Environment
 	ENVIRONMENT_KEY  string = "ENV"
 	DEV_ENVIRONMENT  string = "development"
@@ -49,7 +54,9 @@ const (
 
 var (
 	TRUSTED_ORIGINS = map[string]struct{}{
+		// Development
 		"localhost": {},
 		"0.0.0.0":   {},
+		"":          {},
 	}
 )
