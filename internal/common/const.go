@@ -47,8 +47,9 @@ const (
 	TTS_REQUEST_TIMEOUT time.Duration = 10 * time.Second
 
 	// Tables
-	SESSION_TABLE_NAME string = "sessions"
-	USER_TABLE_NAME    string = "users"
+	SESSION_TABLE_NAME    string = "sessions"
+	USER_TABLE_NAME       string = "users"
+	TRANSCRIPT_TABLE_NAME string = "transcripts"
 
 	// HTTP
 	HTTP_REQUEST_TIMEOUT time.Duration = time.Minute
