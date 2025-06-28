@@ -78,7 +78,7 @@ func (t *TTSImpl) TextToSpeechWriteToFile(ctx context.Context, text, instruction
 		return fmt.Errorf("http status for tts is not ok, the status code is %d: %w", resp.StatusCode, common.ErrInternalServerError)
 	}
 
-	dir := filepath.Dir(filePath) // Gets "/tmp/abc" from "/tmp/abc/leong.mp3"
+	dir := filepath.Dir(filePath)
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		return fmt.Errorf("unable to create directory for tts output: %w", common.ErrInternalServerError)
 	}

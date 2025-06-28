@@ -31,13 +31,13 @@ func (t *TranscriptRepoImpl) Create(ctx context.Context, transcript *entity.Tran
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{transcript.InterviewID, transcript.Role, transcript.Content, transcript.CreatedTimestampMS}
+	args := []any{transcript.InterviewID, transcript.Role, transcript.Content, transcript.CreatedTimestampMS, transcript.URL}
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s
-		(interview_id, role, content, created_timestamp_ms)
+		(interview_id, role, content, created_timestamp_ms, url)
 		VALUES
-		($1, $2, $3, $4)
+		($1, $2, $3, $4, $5)
 	`, common.TRANSCRIPT_TABLE_NAME)
 
 	_, err := t.db.ExecContext(ctx, query, args...)

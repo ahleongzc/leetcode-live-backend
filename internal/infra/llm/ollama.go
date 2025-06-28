@@ -141,8 +141,8 @@ func (o *Ollama) convertToOllamaChatCompletionsRequest(req *model.ChatCompletion
 
 	for _, message := range req.GetMessages() {
 		ollamaMessage := &OllamaMessage{
-			Content: message.Content,
-			Role:    message.Role,
+			Content: message.GetContent(),
+			Role:    string(message.GetRole()),
 		}
 		ollamaChatCompletionsRequest.addMessage(ollamaMessage)
 	}
@@ -150,12 +150,12 @@ func (o *Ollama) convertToOllamaChatCompletionsRequest(req *model.ChatCompletion
 	return ollamaChatCompletionsRequest, nil
 }
 
-func (o *OllamaMessage) convertToMessage() (*model.Message, error) {
+func (o *OllamaMessage) convertToMessage() (*model.LLMMessage, error) {
 	if o == nil {
 		return nil, fmt.Errorf("cannot convert nil ollamaMessage into message: %w", common.ErrInternalServerError)
 	}
-	return &model.Message{
-		Role:    o.Role,
+	return &model.LLMMessage{
+		Role:    model.LLMRole(o.Role),
 		Content: o.Content,
 	}, nil
 }

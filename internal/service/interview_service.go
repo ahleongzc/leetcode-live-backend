@@ -21,9 +21,11 @@ type InterviewService interface {
 func NewInterviewService(
 	llm infra.LLM,
 	interviewRepo repo.InterviewRepo,
+	fileRepo repo.FileRepo,
 	authScenario scenario.AuthScenario,
 	transcriptManager scenario.TranscriptManager,
 	intentClassifier scenario.IntentClassifier,
+	tts infra.TTS,
 ) InterviewService {
 	return &InterviewServiceImpl{
 		llm:               llm,
@@ -31,15 +33,19 @@ func NewInterviewService(
 		authScenario:      authScenario,
 		transcriptManager: transcriptManager,
 		intentClassifier:  intentClassifier,
+		tts:               tts,
+		fileRepo:          fileRepo,
 	}
 }
 
 type InterviewServiceImpl struct {
 	llm               infra.LLM
 	interviewRepo     repo.InterviewRepo
+	fileRepo          repo.FileRepo
 	authScenario      scenario.AuthScenario
 	transcriptManager scenario.TranscriptManager
 	intentClassifier  scenario.IntentClassifier
+	tts               infra.TTS
 }
 
 func (i *InterviewServiceImpl) ProcessInterviewMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error) {
@@ -55,7 +61,7 @@ func (i *InterviewServiceImpl) ProcessInterviewMessage(ctx context.Context, inte
 		return nil, err
 	}
 
-	response, err := i.generateReplyBasedOnIntent(ctx, interviewID, intent)
+	response, err := i.generateReplyBasedOnIntent(ctx, interviewID, intent, errChan)
 	if err != nil {
 		return nil, err
 	}
@@ -71,14 +77,21 @@ func (i *InterviewServiceImpl) ProcessInterviewMessage(ctx context.Context, inte
 	return response, nil
 }
 
-func (i *InterviewServiceImpl) generateReplyBasedOnIntent(ctx context.Context, interviewID int, intent scenario.IntentType) (*model.InterviewMessage, error) {
-	switch intent {
-	case scenario.NO_INTENT:
+func (i *InterviewServiceImpl) generateReplyBasedOnIntent(ctx context.Context, interviewID int, intent scenario.IntentType, errChan chan error) (*model.InterviewMessage, error) {
+	if intent == scenario.NO_INTENT {
 		return nil, nil
+	}
+
+	err := i.transcriptManager.Flush(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	switch intent {
 	case scenario.HINT_REQUEST:
-		return i.giveHints(ctx, interviewID)
+		return i.giveHints(ctx, interviewID, errChan)
 	case scenario.CLARIFICATION_REQUEST:
-		return i.clarify(ctx, interviewID)
+		return i.clarify(ctx, interviewID, errChan)
 	case scenario.END_REQUEST:
 		return i.endInterview(ctx, interviewID)
 	default:
@@ -86,12 +99,69 @@ func (i *InterviewServiceImpl) generateReplyBasedOnIntent(ctx context.Context, i
 	}
 }
 
-func (i *InterviewServiceImpl) clarify(ctx context.Context, interviewID int) (*model.InterviewMessage, error) {
+func (i *InterviewServiceImpl) clarify(ctx context.Context, interviewID int, errChan chan error) (*model.InterviewMessage, error) {
 	return nil, nil
 }
 
-func (i *InterviewServiceImpl) giveHints(ctx context.Context, interviewID int) (*model.InterviewMessage, error) {
-	return nil, nil
+func (i *InterviewServiceImpl) giveHints(ctx context.Context, interviewID int, errChan chan error) (*model.InterviewMessage, error) {
+	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	llmMessages := make([]*model.LLMMessage, len(history)+1)
+	llmMessages = append(llmMessages, &model.LLMMessage{
+		Role: model.SYSTEM,
+		Content: `
+		You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Your task is to provide concise, high-quality hints to help the candidate move forward based on the question they're currently solving and the history of their previous questions or messages. 
+		Do not give the full solution. 
+		Tailor your hints to their level of understanding and avoid repeating information they've already figured out. 
+		If the candidate appears confused or stuck, offer a nudge in the right direction without revealing the answer.
+		Keep your hints short and simple, and reply like how you would in a real life interview.`,
+	})
+
+	for _, transcript := range history {
+		llmMessages = append(llmMessages, transcript.ToLLMMessage())
+	}
+
+	req := &model.ChatCompletionsRequest{
+		Messages: llmMessages,
+	}
+
+	resp, err := i.llm.ChatCompletions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := i.tts.TextToSpeechReader(
+		ctx,
+		resp.GetResponse().GetContent(),
+		`You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+		Pause briefly between key points. 
+		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "test.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	go func() {
+		if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, resp.GetResponse().GetContent(), url); err != nil {
+			errChan <- err
+		}
+	}()
+
+	return &model.InterviewMessage{
+		Type:    model.URL,
+		Content: url,
+	}, nil
 }
 
 func (i *InterviewServiceImpl) endInterview(ctx context.Context, interviewID int) (*model.InterviewMessage, error) {

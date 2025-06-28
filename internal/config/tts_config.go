@@ -37,7 +37,7 @@ func LoadTTSConfig() *TTSConfig {
 
 	return &TTSConfig{
 		URL:    common.OPENAI_BASE_URL + "/v1/audio/speech",
-		Voice:  Coral,
+		Voice:  Alloy,
 		Model:  TTS_1,
 		APIKey: apiKey,
 	}

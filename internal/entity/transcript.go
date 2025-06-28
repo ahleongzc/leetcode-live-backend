@@ -1,5 +1,7 @@
 package entity
 
+import "github.com/ahleongzc/leetcode-live-backend/internal/model"
+
 type Role string
 
 const (
@@ -14,4 +16,12 @@ type Transcript struct {
 	Content            string
 	InterviewID        int
 	CreatedTimestampMS int64
+	URL                string
+}
+
+func (t *Transcript) ToLLMMessage() *model.LLMMessage {
+	return &model.LLMMessage{
+		Role:    model.LLMRole(t.Role),
+		Content: t.Content,
+	}
 }

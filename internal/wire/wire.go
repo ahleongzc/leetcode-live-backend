@@ -38,19 +38,19 @@ func InitializeApplication() (*app.Application, error) {
 		repo.NewUserRepo,
 		repo.NewInterviewRepo,
 		repo.NewTranscriptRepo,
-		// repo.NewFileRepo,
+		repo.NewFileRepo,
 
 		// Infra
-		// infra.NewTTS,
+		infra.NewTTS,
 		infra.NewLLM,
 		infra.NewPostgresDatabase,
 		infra.NewZerologLogger,
-		// infra.NewCloudflareR2ObjectStorageClient,
+		infra.NewCloudflareR2ObjectStorageClient,
 
 		// Config
 		config.LoadDatabaseConfig,
-		// config.LoadObjectStorageConfig,
-		// config.LoadTTSConfig,
+		config.LoadObjectStorageConfig,
+		config.LoadTTSConfig,
 		config.LoadWebsocketConfig,
 
 		// Middleware

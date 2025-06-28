@@ -34,11 +34,19 @@ func InitializeApplication() (*app.Application, error) {
 	websocketConfig := config.LoadWebsocketConfig()
 	llm := infra.NewLLM()
 	interviewRepo := repo.NewInterviewRepo(db)
+	objectStorageConfig := config.LoadObjectStorageConfig()
+	client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
+	if err != nil {
+		return nil, err
+	}
+	fileRepo := repo.NewFileRepo(client, objectStorageConfig)
 	authScenario := scenario.NewAuthScenario(userRepo, sessionRepo)
 	transcriptRepo := repo.NewTranscriptRepo(db)
 	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
 	intentClassifier := scenario.NewIntentClassifier()
-	interviewService := service.NewInterviewService(llm, interviewRepo, authScenario, transcriptManager, intentClassifier)
+	ttsConfig := config.LoadTTSConfig()
+	tts := infra.NewTTS(ttsConfig)
+	interviewService := service.NewInterviewService(llm, interviewRepo, fileRepo, authScenario, transcriptManager, intentClassifier, tts)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)

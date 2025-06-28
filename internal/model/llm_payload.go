@@ -6,27 +6,49 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 )
 
+type LLMRole string
+
+const (
+	SYSTEM    LLMRole = "system"
+	USER      LLMRole = "user"
+	ASSISTANT LLMRole = "assistant"
+)
+
 type ChatCompletionsRequest struct {
-	Messages []*Message
+	Messages []*LLMMessage
 }
 
-func (c *ChatCompletionsRequest) GetMessages() []*Message {
+func (c *ChatCompletionsRequest) GetMessages() []*LLMMessage {
 	if c == nil {
 		return nil
 	}
 	if c.Messages == nil {
-		c.Messages = make([]*Message, 0)
+		c.Messages = make([]*LLMMessage, 0)
 	}
 	return c.Messages
 }
 
-type Message struct {
-	Role    string
+type LLMMessage struct {
+	Role    LLMRole
 	Content string
 }
 
-func NewMessage(role, content string) *Message {
-	return &Message{
+func (l *LLMMessage) GetRole() LLMRole {
+	if l == nil {
+		return SYSTEM
+	}
+	return l.Role
+}
+
+func (l *LLMMessage) GetContent() string {
+	if l == nil {
+		return ""
+	}
+	return l.Content
+}
+
+func NewMessage(role LLMRole, content string) *LLMMessage {
+	return &LLMMessage{
 		Role:    role,
 		Content: content,
 	}
@@ -59,7 +81,7 @@ func (c *ChatCompletionsResponse) AddChoice(choice *Choice) error {
 	return nil
 }
 
-func (c *ChatCompletionsResponse) GetResponse() *Message {
+func (c *ChatCompletionsResponse) GetResponse() *LLMMessage {
 	if c == nil {
 		return nil
 	}
@@ -72,17 +94,17 @@ func (c *ChatCompletionsResponse) GetResponse() *Message {
 
 type Choice struct {
 	Index   int
-	Message *Message
+	Message *LLMMessage
 }
 
-func NewChoice(index int, message *Message) *Choice {
+func NewChoice(index int, message *LLMMessage) *Choice {
 	return &Choice{
 		Index:   index,
 		Message: message,
 	}
 }
 
-func (c *Choice) GetMessage() *Message {
+func (c *Choice) GetMessage() *LLMMessage {
 	if c == nil {
 		return nil
 	}
