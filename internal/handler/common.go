@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -12,11 +14,27 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
+	"github.com/coder/websocket"
 
 	"github.com/rs/zerolog/log"
 )
 
-func WriteJSON(w http.ResponseWriter, payload util.JSONPayload, statusCode int, headers http.Header) error {
+func WriteJSONWebsocket(ctx context.Context, conn *websocket.Conn, payload util.JSONPayload) error {
+	var marshalledPayload []byte
+	var err error
+
+	if payload != nil {
+		marshalledPayload, err = json.Marshal(payload)
+		if err != nil {
+			return err
+		}
+	}
+
+	conn.Write(ctx, websocket.MessageText, marshalledPayload)
+	return nil
+}
+
+func WriteJSONHTTP(w http.ResponseWriter, payload util.JSONPayload, statusCode int, headers http.Header) error {
 	var marshalledPayload []byte
 	var err error
 
@@ -36,12 +54,28 @@ func WriteJSON(w http.ResponseWriter, payload util.JSONPayload, statusCode int, 
 	return nil
 }
 
-func ReadJSON(w http.ResponseWriter, r *http.Request, dst any) error {
+func ReadJSONBytes(data []byte, dst any) error {
+	if dst == nil {
+		return fmt.Errorf("dst cannot be nil when calling readJSON for websockets: %w", common.ErrInternalServerError)
+	}
+
+	maxBytes := common.INCOMING_PAYLOAD_MAX_BYTES
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+
+	err := decodeJSON(dec, maxBytes, dst)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ReadJSONHTTPReq(w http.ResponseWriter, r *http.Request, dst any) error {
 	if dst == nil {
 		return fmt.Errorf("dst cannot be nil when calling readJSON for http: %w", common.ErrInternalServerError)
 	}
 
-	maxBytes := 1_048_576
+	maxBytes := common.INCOMING_PAYLOAD_MAX_BYTES
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 
 	dec := json.NewDecoder(r.Body)
@@ -71,7 +105,7 @@ func decodeJSON(decoder *json.Decoder, maxBytes int, dst any) error {
 			return fmt.Errorf("body contains badly-formed JSON (at character %d): %w", syntaxError.Offset, common.ErrBadRequest)
 
 		case errors.Is(err, io.ErrUnexpectedEOF):
-			return fmt.Errorf("body contains badly-formed JSON:: %w", common.ErrBadRequest)
+			return fmt.Errorf("body contains badly-formed JSON: %w", common.ErrBadRequest)
 
 		case errors.As(err, &unmarshalTypeError):
 			if unmarshalTypeError.Field != "" {
@@ -105,59 +139,88 @@ func decodeJSON(decoder *json.Decoder, maxBytes int, dst any) error {
 	return nil
 }
 
-func HandleErrorResponse(w http.ResponseWriter, err error) {
+func HandleErrorResponeWebsocket(ctx context.Context, conn *websocket.Conn, err error) {
 	switch {
+	case errors.Is(err, common.ErrNormalClientClosure):
+		// Ignore normal client closure
 	case errors.Is(err, common.ErrBadRequest):
-		clientBadRequestErrorResponse(w, err)
-	case errors.Is(err, common.ErrUnauthorized):
-		clientUnauthorizedResponse(w)
-	case errors.Is(err, common.ErrForbidden):
-		clientForbiddenResponse(w)
-	case errors.Is(err, common.ErrNotFound):
-		dataNotFoundErrorResponse(w, err)
+		clientBadRequestErrorWebsocketResponse(ctx, conn, err)
 	case errors.Is(err, common.ErrInternalServerError):
-		internalServerErrorResponse(w, err)
+		internalServerErrorWebsocketResponse(ctx, conn, err)
 	default:
-		internalServerErrorResponse(w, err)
+		internalServerErrorWebsocketResponse(ctx, conn, err)
 	}
 }
 
-func dataNotFoundErrorResponse(w http.ResponseWriter, err error) {
+func HandleErrorResponseHTTP(w http.ResponseWriter, err error) {
+	switch {
+	case errors.Is(err, common.ErrBadRequest):
+		clientBadRequestErrorHTTPResponse(w, err)
+	case errors.Is(err, common.ErrUnauthorized):
+		clientUnauthorizedHTTPResponse(w)
+	case errors.Is(err, common.ErrForbidden):
+		clientForbiddenHTTPResponse(w)
+	case errors.Is(err, common.ErrNotFound):
+		dataNotFoundErrorHTTPResponse(w, err)
+	case errors.Is(err, common.ErrInternalServerError):
+		internalServerErrorHTTPResponse(w, err)
+	default:
+		internalServerErrorHTTPResponse(w, err)
+	}
+}
+
+func clientBadRequestErrorWebsocketResponse(ctx context.Context, conn *websocket.Conn, err error) {
 	payload := util.NewJSONPayload()
 	payload.Add("error", err.Error())
 
-	WriteJSON(w, payload, http.StatusNotFound, nil)
+	WriteJSONWebsocket(ctx, conn, payload)
 }
 
-func clientBadRequestErrorResponse(w http.ResponseWriter, err error) {
+func internalServerErrorWebsocketResponse(ctx context.Context, conn *websocket.Conn, err error) {
+	log.Error().Err(err).Msg("")
+
+	payload := util.NewJSONPayload()
+	payload.Add("error", "internal server error")
+
+	WriteJSONWebsocket(ctx, conn, payload)
+}
+
+func dataNotFoundErrorHTTPResponse(w http.ResponseWriter, err error) {
 	payload := util.NewJSONPayload()
 	payload.Add("error", err.Error())
 
-	WriteJSON(w, payload, http.StatusBadRequest, nil)
+	WriteJSONHTTP(w, payload, http.StatusNotFound, nil)
 }
 
-func clientForbiddenResponse(w http.ResponseWriter) {
+func clientBadRequestErrorHTTPResponse(w http.ResponseWriter, err error) {
+	payload := util.NewJSONPayload()
+	payload.Add("error", err.Error())
+
+	WriteJSONHTTP(w, payload, http.StatusBadRequest, nil)
+}
+
+func clientForbiddenHTTPResponse(w http.ResponseWriter) {
 	payload := util.NewJSONPayload()
 	payload.Add("error", "you are unauthorized to access this resource")
 
-	WriteJSON(w, payload, http.StatusForbidden, nil)
+	WriteJSONHTTP(w, payload, http.StatusForbidden, nil)
 }
 
-func clientUnauthorizedResponse(w http.ResponseWriter) {
+func clientUnauthorizedHTTPResponse(w http.ResponseWriter) {
 	payload := util.NewJSONPayload()
 	payload.Add("error", "wrong credentials")
 
-	WriteJSON(w, payload, http.StatusUnauthorized, nil)
+	WriteJSONHTTP(w, payload, http.StatusUnauthorized, nil)
 }
 
-func internalServerErrorResponse(w http.ResponseWriter, err error) {
+func internalServerErrorHTTPResponse(w http.ResponseWriter, err error) {
 	log.Error().Err(err).Msg("error")
 
 	payload := util.NewJSONPayload()
 	payload.Add("error", "internal server error")
 
 	w.Header().Set("Connection", "close")
-	WriteJSON(w, payload, http.StatusInternalServerError, nil)
+	WriteJSONHTTP(w, payload, http.StatusInternalServerError, nil)
 }
 
 func NewHTTPCookie(name, value string, expiryTimestampMS int64) *http.Cookie {

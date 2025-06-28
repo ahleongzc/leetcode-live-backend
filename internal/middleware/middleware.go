@@ -35,7 +35,7 @@ func (m *Middleware) CORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 		if _, exists := trustedOrigins[origin]; !exists {
-			handler.HandleErrorResponse(w, common.ErrForbidden)
+			handler.HandleErrorResponseHTTP(w, common.ErrForbidden)
 			return
 		}
 
@@ -80,7 +80,7 @@ func (m *Middleware) RecoverPanic(next http.Handler) http.Handler {
 		defer func() {
 			if err := recover(); err != nil {
 				m.logger.Panic().Msg("")
-				handler.HandleErrorResponse(w, fmt.Errorf("%w", common.ErrInternalServerError))
+				handler.HandleErrorResponseHTTP(w, fmt.Errorf("%w", common.ErrInternalServerError))
 			}
 		}()
 

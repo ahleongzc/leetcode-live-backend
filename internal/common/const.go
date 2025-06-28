@@ -52,10 +52,11 @@ const (
 	TRANSCRIPT_TABLE_NAME string = "transcripts"
 
 	// HTTP
-	HTTP_REQUEST_TIMEOUT time.Duration = time.Minute
-	AUTHORIZATION        string        = "Authorization"
-	CONTENT_TYPE         string        = "Content-Type"
-	ACCEPT               string        = "Accept"
+	HTTP_REQUEST_TIMEOUT       time.Duration = time.Minute
+	AUTHORIZATION              string        = "Authorization"
+	CONTENT_TYPE               string        = "Content-Type"
+	ACCEPT                     string        = "Accept"
+	INCOMING_PAYLOAD_MAX_BYTES int           = 1_048_576
 )
 
 var (

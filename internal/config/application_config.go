@@ -17,7 +17,7 @@ type ServerConfig struct {
 }
 
 func LoadServerConfig() *ServerConfig {
-	address := "localhost:8080"
+	address := "localhost:" + os.Getenv(common.PORT_KEY)
 	idleTimeout := time.Minute
 	readTimeout := 10 * time.Second
 	writeTimeout := 30 * time.Second

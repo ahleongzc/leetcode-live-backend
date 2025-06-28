@@ -1,29 +1,37 @@
 package handler
 
 import (
+	"context"
 	"net/http"
-	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 
 	"github.com/coder/websocket"
+	"github.com/rs/zerolog"
 )
 
 type InterviewHandler struct {
-	websocketConfig *config.WebsocketConfig
-	authService     service.AuthService
+	websocketConfig  *config.WebsocketConfig
+	authService      service.AuthService
+	interviewService service.InterviewService
+	logger           *zerolog.Logger
 }
 
 func NewInterviewHandler(
 	websocketConfig *config.WebsocketConfig,
 	authService service.AuthService,
+	interviewService service.InterviewService,
+	logger *zerolog.Logger,
 ) *InterviewHandler {
 	return &InterviewHandler{
-		websocketConfig: websocketConfig,
-		authService:     authService,
+		websocketConfig:  websocketConfig,
+		authService:      authService,
+		interviewService: interviewService,
+		logger:           logger,
 	}
 }
 
@@ -32,35 +40,123 @@ type WebsocketMessageStruct struct {
 	Content string `json:"content"`
 }
 
-func (i *InterviewHandler) StartInterview(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
 	sessionID := r.Header.Get("session-id")
 
 	valid, err := i.authService.ValidateSession(ctx, sessionID)
 	if err != nil {
-		HandleErrorResponse(w, err)
+		HandleErrorResponseHTTP(w, err)
 		return
 	}
-
 	if !valid {
-		HandleErrorResponse(w, common.ErrUnauthorized)
+		HandleErrorResponseHTTP(w, common.ErrUnauthorized)
 		return
 	}
 
 	conn, err := websocket.Accept(w, r, i.websocketConfig.AcceptOptions)
 	if err != nil {
-		HandleErrorResponse(w, err)
+		HandleErrorResponseHTTP(w, err)
 		return
 	}
-	defer conn.CloseNow()
+	defer conn.Close(websocket.StatusNormalClosure, "connection closed by server")
 
-	readChan := make(chan *model.InterviewMessage)
-	writeChan := make(chan *model.InterviewMessage)
+	respondChan := make(chan *model.InterviewMessage)
+	errChan := make(chan error)
 
-	defer close(readChan)
-	defer close(writeChan)
+	go func() {
+		defer close(respondChan)
+		i.readPump(ctx, conn, respondChan, errChan)
+	}()
+
+	go func() {
+		i.writePump(ctx, conn, respondChan, errChan)
+	}()
+
+	select {
+	case <-ctx.Done():
+	case err := <-errChan:
+		HandleErrorResponeWebsocket(ctx, conn, err)
+		cancel()
+	}
+
+	i.logger.Info().Msg("websocket connection closed")
+}
+
+func (i *InterviewHandler) readPump(ctx context.Context, conn *websocket.Conn, respondChan chan *model.InterviewMessage, errChan chan error) {
+	// Buffered channel for 20 incoming messages until it's processed downstream
+	messageChan := make(chan *model.InterviewMessage, 20)
+	defer close(messageChan)
+
+	go func() {
+		for message := range messageChan {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				response, err := i.interviewService.ProcessMessage(ctx, message)
+				if err != nil {
+					select {
+					case errChan <- err:
+					case <-ctx.Done(): // To prevent writing to the error channel when the ctx is cancelled
+					}
+					continue
+				}
+
+				if response != nil {
+					select {
+					case respondChan <- response:
+					case <-ctx.Done(): // To prevent writing to the respond channel when the ctx is cancelled
+					}
+				}
+			}
+		}
+	}()
 
 	for {
-		time.Sleep(25 * time.Millisecond)
+		_, bytes, err := conn.Read(ctx)
+		if err != nil {
+			if websocket.CloseStatus(err) == websocket.StatusNormalClosure ||
+				websocket.CloseStatus(err) == websocket.StatusGoingAway {
+				err = common.ErrNormalClientClosure
+			}
+			errChan <- err
+			return
+		}
+
+		message := &model.InterviewMessage{}
+		err = ReadJSONBytes(bytes, message)
+		if err != nil {
+			errChan <- err
+			return
+		}
+
+		select {
+		case messageChan <- message:
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (i *InterviewHandler) writePump(ctx context.Context, conn *websocket.Conn, respondChan <-chan *model.InterviewMessage, errChan chan error) {
+	for {
+		select {
+		case message, ok := <-respondChan:
+			if !ok {
+				return // Channel has closed
+			}
+			payload := util.NewJSONPayload()
+			payload.Add("type", message.Type)
+			payload.Add("content", message.Content)
+			if err := WriteJSONWebsocket(ctx, conn, payload); err != nil {
+				errChan <- err
+				return
+			}
+		case <-ctx.Done():
+			return
+		}
 	}
 }

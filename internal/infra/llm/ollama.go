@@ -44,7 +44,7 @@ func (o *Ollama) ChatCompletions(ctx context.Context, chatCompletionsRequest *mo
 		return nil, fmt.Errorf("unable to marshal payload before calling ollama, %s: %w", err.Error(), common.ErrInternalServerError)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(jsonPayload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewBuffer(jsonPayload))
 	if err != nil {
 		return nil, fmt.Errorf("unable to perform HTTP call to ollama, %s: %w", err.Error(), common.ErrInternalServerError)
 	}

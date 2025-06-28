@@ -25,6 +25,7 @@ func InitializeApplication() (*app.Application, error) {
 
 		// Service
 		service.NewAuthService,
+		service.NewInterviewService,
 
 		// Repo
 		repo.NewSessionRepo,
@@ -33,7 +34,7 @@ func InitializeApplication() (*app.Application, error) {
 
 		// Infra
 		// infra.NewTTS,
-		// infra.NewLLM,
+		infra.NewLLM,
 		infra.NewPostgresDatabase,
 		infra.NewZerologLogger,
 		// infra.NewCloudflareR2ObjectStorageClient,

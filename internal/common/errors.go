@@ -13,4 +13,5 @@ var (
 	ErrRateLimited         = errors.New("rate limit exceeded")
 	ErrInternalServerError = errors.New("internal server error")
 	ErrInvalidArgument     = errors.New("invalid argument")
+	ErrNormalClientClosure = errors.New("client closed connection normally")
 )

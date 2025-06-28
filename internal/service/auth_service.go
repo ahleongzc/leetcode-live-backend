@@ -2,11 +2,15 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
+	"github.com/google/uuid"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -35,6 +39,9 @@ type AuthServiceImpl struct {
 func (a *AuthServiceImpl) ValidateSession(ctx context.Context, sessionID string) (bool, error) {
 	session, err := a.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return false, common.ErrUnauthorized
+		}
 		return false, err
 	}
 
@@ -72,10 +79,30 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 		return "", common.ErrUnauthorized
 	}
 
-	return "", nil
+	session := &entity.Session{
+		ID:                generateSessionID(),
+		UserID:            user.ID,
+		ExpireTimestampMS: time.Now().Add(48 * time.Hour).UnixMilli(),
+	}
+
+	err = a.sessionRepo.Create(ctx, session)
+	if err != nil {
+		return "", err
+	}
+
+	return session.ID, nil
 }
 
 func isSamePassword(hashedPassword, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
+}
+
+func generateSessionID() string {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return uuid.NewString()
+	}
+	return base64.RawURLEncoding.EncodeToString(b)
 }

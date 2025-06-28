@@ -16,5 +16,5 @@ func (hc *HealthHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	payload := util.NewJSONPayload()
 	payload.Add("health", "ok")
 
-	WriteJSON(w, payload, http.StatusOK, nil)
+	WriteJSONHTTP(w, payload, http.StatusOK, nil)
 }

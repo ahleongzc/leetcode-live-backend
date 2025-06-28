@@ -38,19 +38,21 @@ func (f *FileRepoImpl) Upload(ctx context.Context, fileName string, content io.R
 	ctx, cancel := context.WithTimeout(ctx, common.FILE_UPLOAD_TIMEOUT)
 	defer cancel()
 
-	_, err := f.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket: aws.String(f.bucketName),
-		Key:    aws.String(fileName),
-		Body:   content,
-	})
+	_, err := f.client.PutObject(
+		ctx, &s3.PutObjectInput{
+			Bucket: aws.String(f.bucketName),
+			Key:    aws.String(fileName),
+			Body:   content,
+		})
 	if err != nil {
 		return "", fmt.Errorf("unable to upload file to object storage, %s: %w", err, common.ErrInternalServerError)
 	}
 
-	res, err := f.presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
-		Bucket: aws.String(f.bucketName),
-		Key:    aws.String(fileName),
-	}, s3.WithPresignExpires(common.PRESIGNED_URL_EXPIRY_DURATION))
+	res, err := f.presignClient.PresignGetObject(
+		ctx, &s3.GetObjectInput{
+			Bucket: aws.String(f.bucketName),
+			Key:    aws.String(fileName),
+		}, s3.WithPresignExpires(common.PRESIGNED_URL_EXPIRY_DURATION))
 	if err != nil {
 		return "", fmt.Errorf("unable to generate presigned url, %s: %w", err, common.ErrInternalServerError)
 	}

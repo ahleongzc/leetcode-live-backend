@@ -31,22 +31,22 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Password string `json:"password"`
 	}{}
 
-	err := ReadJSON(w, r, request)
+	err := ReadJSONHTTPReq(w, r, request)
 	if err != nil {
-		HandleErrorResponse(w, err)
+		HandleErrorResponseHTTP(w, err)
 		return
 	}
 
 	sessionID, err := a.authService.Login(ctx, request.Email, request.Password)
 	if err != nil {
-		HandleErrorResponse(w, err)
+		HandleErrorResponseHTTP(w, err)
 		return
 	}
 
 	payload := util.NewJSONPayload()
 	payload.Add("session_id", sessionID)
 
-	WriteJSON(w, payload, http.StatusOK, nil)
+	WriteJSONHTTP(w, payload, http.StatusOK, nil)
 }
 
 func (a *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
