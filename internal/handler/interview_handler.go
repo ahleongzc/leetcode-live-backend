@@ -45,6 +45,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	defer cancel()
 
 	sessionID := r.Header.Get("session-id")
+	questionID := r.URL.Query().Get("question_id")
 
 	valid, err := i.authService.ValidateSession(ctx, sessionID)
 	if err != nil {
@@ -54,6 +55,11 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	if !valid {
 		HandleErrorResponseHTTP(w, common.ErrUnauthorized)
 		return
+	}
+
+	interview, err := i.interviewService.GetInterviewDetail(ctx, sessionID, questionID)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
 	}
 
 	conn, err := websocket.Accept(w, r, i.websocketConfig.AcceptOptions)
@@ -68,7 +74,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 
 	go func() {
 		defer close(respondChan)
-		i.readPump(ctx, conn, respondChan, errChan)
+		i.readPump(ctx, interview.ID, conn, respondChan, errChan)
 	}()
 
 	go func() {
@@ -85,7 +91,13 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	i.logger.Info().Msg("websocket connection closed")
 }
 
-func (i *InterviewHandler) readPump(ctx context.Context, conn *websocket.Conn, respondChan chan *model.InterviewMessage, errChan chan error) {
+func (i *InterviewHandler) readPump(
+	ctx context.Context,
+	interviewID int,
+	conn *websocket.Conn,
+	respondChan chan *model.InterviewMessage,
+	errChan chan error,
+) {
 	// Buffered channel for 20 incoming messages until it's processed downstream
 	messageChan := make(chan *model.InterviewMessage, 20)
 	defer close(messageChan)
@@ -96,7 +108,7 @@ func (i *InterviewHandler) readPump(ctx context.Context, conn *websocket.Conn, r
 			case <-ctx.Done():
 				return
 			default:
-				response, err := i.interviewService.ProcessMessage(ctx, message)
+				response, err := i.interviewService.ProcessInterviewMessage(ctx, interviewID, message)
 				if err != nil {
 					select {
 					case errChan <- err:
@@ -141,7 +153,12 @@ func (i *InterviewHandler) readPump(ctx context.Context, conn *websocket.Conn, r
 	}
 }
 
-func (i *InterviewHandler) writePump(ctx context.Context, conn *websocket.Conn, respondChan <-chan *model.InterviewMessage, errChan chan error) {
+func (i *InterviewHandler) writePump(
+	ctx context.Context,
+	conn *websocket.Conn,
+	respondChan <-chan *model.InterviewMessage,
+	errChan chan error,
+) {
 	for {
 		select {
 		case message, ok := <-respondChan:

@@ -39,8 +39,10 @@ func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) error {
 	args := []any{time.Now().UnixMilli()}
 
 	query := fmt.Sprintf(`
-		DELETE FROM %s
-		WHERE $1 > expire_timestamp_ms
+		DELETE FROM 
+			%s
+		WHERE 
+			$1 > expire_timestamp_ms
     `, common.SESSION_TABLE_NAME)
 
 	_, err := s.db.ExecContext(ctx, query, args...)
@@ -59,9 +61,13 @@ func (s *SessionRepoImpl) Update(ctx context.Context, session *entity.Session) e
 	args := []any{session.UserID, session.ExpireTimestampMS, session.ID}
 
 	query := fmt.Sprintf(`
-        UPDATE %s 
-        SET user_id = $1, expire_timestamp_ms = $2
-        WHERE id = $3
+        UPDATE 
+			%s 
+        SET 
+			user_id = $1, 
+			expire_timestamp_ms = $2
+        WHERE 
+			id = $3
     `, common.SESSION_TABLE_NAME)
 
 	result, err := s.db.ExecContext(ctx, query, args...)
@@ -90,7 +96,8 @@ func (s *SessionRepoImpl) DeleteByID(ctx context.Context, ID string) error {
 
 	query := fmt.Sprintf(`
 		DELETE FROM %s
-		WHERE id = $1
+		WHERE 
+			id = $1
 	`, common.SESSION_TABLE_NAME)
 
 	result, err := s.db.ExecContext(ctx, query, args...)
@@ -119,9 +126,9 @@ func (s *SessionRepoImpl) Create(ctx context.Context, session *entity.Session) e
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s
-		(id, expire_timestamp_ms)
+			(id, expire_timestamp_ms)
 		VALUES
-		($1, $2)
+			($1, $2)
 	`, common.SESSION_TABLE_NAME)
 
 	_, err := s.db.ExecContext(ctx, query, args...)

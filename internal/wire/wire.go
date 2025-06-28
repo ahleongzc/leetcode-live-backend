@@ -11,6 +11,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
+	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 
 	"github.com/google/wire"
@@ -26,6 +27,9 @@ func InitializeApplication() (*app.Application, error) {
 		// Service
 		service.NewAuthService,
 		service.NewInterviewService,
+
+		// Scenario
+		scenario.NewAuthScenario,
 
 		// Repo
 		repo.NewSessionRepo,

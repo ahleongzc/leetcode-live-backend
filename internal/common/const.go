@@ -50,6 +50,7 @@ const (
 	SESSION_TABLE_NAME    string = "sessions"
 	USER_TABLE_NAME       string = "users"
 	TRANSCRIPT_TABLE_NAME string = "transcripts"
+	INTERVIEW_TABLE_NAME  string = "interviews"
 
 	// HTTP
 	HTTP_REQUEST_TIMEOUT       time.Duration = time.Minute
