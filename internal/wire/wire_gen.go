@@ -14,6 +14,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
+	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 )
 
@@ -32,7 +33,12 @@ func InitializeApplication() (*app.Application, error) {
 	healthHandler := handler.NewHealthHandler()
 	websocketConfig := config.LoadWebsocketConfig()
 	llm := infra.NewLLM()
-	interviewService := service.NewInterviewService(llm)
+	interviewRepo := repo.NewInterviewRepo(db)
+	authScenario := scenario.NewAuthScenario(userRepo, sessionRepo)
+	transcriptRepo := repo.NewTranscriptRepo(db)
+	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
+	intentClassifier := scenario.NewIntentClassifier()
+	interviewService := service.NewInterviewService(llm, interviewRepo, authScenario, transcriptManager, intentClassifier)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)

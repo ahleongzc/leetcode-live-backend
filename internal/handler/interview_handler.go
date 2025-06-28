@@ -57,9 +57,10 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	interview, err := i.interviewService.GetInterviewDetail(ctx, sessionID, questionID)
+	interview, err := i.interviewService.GetInterviewDetails(ctx, sessionID, questionID)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
+		return
 	}
 
 	conn, err := websocket.Accept(w, r, i.websocketConfig.AcceptOptions)
@@ -138,11 +139,16 @@ func (i *InterviewHandler) readPump(
 			return
 		}
 
-		message := &model.InterviewMessage{}
-		err = ReadJSONBytes(bytes, message)
+		websocketMessage := &WebsocketMessageStruct{}
+		err = ReadJSONBytes(bytes, websocketMessage)
 		if err != nil {
 			errChan <- err
 			return
+		}
+
+		message := &model.InterviewMessage{
+			Type:    model.InterviewMessageType(websocketMessage.Type),
+			Content: websocketMessage.Content,
 		}
 
 		select {
@@ -163,11 +169,13 @@ func (i *InterviewHandler) writePump(
 		select {
 		case message, ok := <-respondChan:
 			if !ok {
-				return // Channel has closed
+				return
 			}
+
 			payload := util.NewJSONPayload()
 			payload.Add("type", message.Type)
 			payload.Add("content", message.Content)
+
 			if err := WriteJSONWebsocket(ctx, conn, payload); err != nil {
 				errChan <- err
 				return

@@ -1,6 +1,12 @@
 package model
 
+type InterviewMessageType string
+
+const (
+	URL InterviewMessageType = "url"
+)
+
 type InterviewMessage struct {
-	Type    string
+	Type    InterviewMessageType
 	Content string
 }

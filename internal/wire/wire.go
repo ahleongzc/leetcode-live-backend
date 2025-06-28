@@ -30,10 +30,14 @@ func InitializeApplication() (*app.Application, error) {
 
 		// Scenario
 		scenario.NewAuthScenario,
+		scenario.NewTranscriptManager,
+		scenario.NewIntentClassifier,
 
 		// Repo
 		repo.NewSessionRepo,
 		repo.NewUserRepo,
+		repo.NewInterviewRepo,
+		repo.NewTranscriptRepo,
 		// repo.NewFileRepo,
 
 		// Infra

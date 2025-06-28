@@ -122,13 +122,13 @@ func (s *SessionRepoImpl) Create(ctx context.Context, session *entity.Session) e
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{session.ID, session.ExpireTimestampMS}
+	args := []any{session.ID, session.UserID, session.ExpireTimestampMS}
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s
-			(id, expire_timestamp_ms)
+			(id, user_id, expire_timestamp_ms)
 		VALUES
-			($1, $2)
+			($1, $2, $3)
 	`, common.SESSION_TABLE_NAME)
 
 	_, err := s.db.ExecContext(ctx, query, args...)
@@ -148,7 +148,7 @@ func (s *SessionRepoImpl) GetByID(ctx context.Context, ID string) (*entity.Sessi
 
 	query := fmt.Sprintf(`
 		SELECT 
-			id, expire_timestamp_ms 
+			id, user_id, expire_timestamp_ms 
 		FROM 
 			%s
 		WHERE 
@@ -156,7 +156,7 @@ func (s *SessionRepoImpl) GetByID(ctx context.Context, ID string) (*entity.Sessi
 	`, common.SESSION_TABLE_NAME)
 
 	session := &entity.Session{}
-	err := s.db.QueryRowContext(ctx, query, args...).Scan(&session.ID, &session.ExpireTimestampMS)
+	err := s.db.QueryRowContext(ctx, query, args...).Scan(&session.ID, &session.UserID, &session.ExpireTimestampMS)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("session: %w", common.ErrNotFound)

@@ -17,7 +17,7 @@ type InterviewQuery struct {
 type InterviewRepo interface {
 	Create(ctx context.Context, interview *entity.Interview) error
 	Update(ctx context.Context, interview *entity.Interview) error
-	GetByUserIDAndExternalQuestionID(ctx context.Context, userID int, questionID string) (*entity.Interview, error)
+	GetByUserIDAndExternalQuestionID(ctx context.Context, userID int, externalQuestionID string) (*entity.Interview, error)
 }
 
 func NewInterviewRepo(
@@ -32,11 +32,11 @@ type InterviewRepoImpl struct {
 	db *sql.DB
 }
 
-func (i *InterviewRepoImpl) GetByUserIDAndExternalQuestionID(ctx context.Context, userID int, questionID string) (*entity.Interview, error) {
+func (i *InterviewRepoImpl) GetByUserIDAndExternalQuestionID(ctx context.Context, userID int, externalQuestionID string) (*entity.Interview, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{userID, questionID}
+	args := []any{userID, externalQuestionID}
 
 	query := fmt.Sprintf(`
 		SELECT 
@@ -44,7 +44,9 @@ func (i *InterviewRepoImpl) GetByUserIDAndExternalQuestionID(ctx context.Context
 		FROM 
 			%s
 		WHERE 
-			id = $1
+			user_id = $1 
+				AND
+			external_question_id = $2
 	`, common.INTERVIEW_TABLE_NAME)
 
 	interview := &entity.Interview{}
@@ -60,7 +62,7 @@ func (i *InterviewRepoImpl) GetByUserIDAndExternalQuestionID(ctx context.Context
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
 		}
-		return nil, fmt.Errorf("unable to get interview with user id %d and external question id %s, %s: %w", userID, questionID, err.Error(), common.ErrInternalServerError)
+		return nil, fmt.Errorf("unable to get interview with user id %d and external question id %s, %s: %w", userID, externalQuestionID, err.Error(), common.ErrInternalServerError)
 	}
 
 	return interview, nil

@@ -13,9 +13,9 @@ import (
 
 type TranscriptManager interface {
 	Flush(ctx context.Context, interviewID int) error
-	Write(ctx context.Context, interviewID int, transcript string) error
-	InitialiseBuffer(ctx context.Context, interviewID int) error
-	DeleteBuffer(ctx context.Context, interviewID int)
+	WriteCandidate(ctx context.Context, interviewID int, transcript string) error
+	WriteInterviewer(ctx context.Context, interviewID int, trascript string) error
+	GetTranscriptHistory(ctx context.Context, interviewID int) ([]*entity.Transcript, error)
 }
 
 func NewTranscriptManager(
@@ -32,8 +32,12 @@ type TranscriptManagerImpl struct {
 	bufferMap      map[int]*strings.Builder
 }
 
-func (t *TranscriptManagerImpl) DeleteBuffer(ctx context.Context, interviewID int) {
-	delete(t.bufferMap, interviewID)
+func (t *TranscriptManagerImpl) GetTranscriptHistory(ctx context.Context, interviewID int) ([]*entity.Transcript, error) {
+	return nil, nil
+}
+
+func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewID int, trascript string) error {
+	return nil
 }
 
 func (t *TranscriptManagerImpl) Flush(ctx context.Context, interviewID int) error {
@@ -58,27 +62,25 @@ func (t *TranscriptManagerImpl) Flush(ctx context.Context, interviewID int) erro
 	return nil
 }
 
-func (t *TranscriptManagerImpl) InitialiseBuffer(ctx context.Context, interviewID int) error {
+func (t *TranscriptManagerImpl) initialiseBuffer(ctx context.Context, interviewID int) {
 	_, ok := t.bufferMap[interviewID]
-	if ok {
-		return fmt.Errorf("buffer already exists for interview id %d: %w", interviewID, common.ErrInternalServerError)
+	if !ok {
+		t.bufferMap[interviewID] = &strings.Builder{}
 	}
-
-	t.bufferMap[interviewID] = &strings.Builder{}
-
-	return nil
 }
 
 // Write implements TranscriptManager.
-func (t *TranscriptManagerImpl) Write(ctx context.Context, interviewID int, transcript string) error {
+func (t *TranscriptManagerImpl) WriteCandidate(ctx context.Context, interviewID int, transcript string) error {
+	t.initialiseBuffer(ctx, interviewID)
+
 	buffer, ok := t.bufferMap[interviewID]
 	if !ok {
-		return fmt.Errorf("no buffer exists for interview id %d: %w", interviewID, common.ErrInternalServerError)
+		return fmt.Errorf("buffer is not initialised: %w", common.ErrInternalServerError)
 	}
 
 	buffer.WriteString(transcript)
 
-	if buffer.Len() < 1024 {
+	if buffer.Len() < 128 {
 		return nil
 	}
 
@@ -86,5 +88,6 @@ func (t *TranscriptManagerImpl) Write(ctx context.Context, interviewID int, tran
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
