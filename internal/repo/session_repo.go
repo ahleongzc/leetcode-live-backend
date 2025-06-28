@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
@@ -15,6 +16,7 @@ type SessionRepo interface {
 	Update(ctx context.Context, session *entity.Session) error
 	GetByID(ctx context.Context, ID string) (*entity.Session, error)
 	DeleteByID(ctx context.Context, ID string) error
+	DeleteExpired(ctx context.Context) error
 }
 
 func NewSessionRepo(
@@ -27,6 +29,26 @@ func NewSessionRepo(
 
 type SessionRepoImpl struct {
 	db *sql.DB
+}
+
+// DeleteExpired implements SessionRepo.
+func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	args := []any{time.Now().UnixMilli()}
+
+	query := fmt.Sprintf(`
+		DELETE FROM %s
+		WHERE $1 > expire_timestamp_ms
+    `, common.SESSION_TABLE_NAME)
+
+	_, err := s.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("unable to delete expired sessions, %s: %w", err.Error(), common.ErrInternalServerError)
+	}
+
+	return nil
 }
 
 // Update implements SessionRepo.

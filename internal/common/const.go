@@ -14,10 +14,11 @@ const (
 	PROD_ENVIRONMENT string = "production"
 
 	// Server
-	PORT_KEY              string = "PORT"
-	IDLE_TIMEOUT_SEC_KEY  string = "IDLE_TIMEOUT"
-	READ_TIMEOUT_SEC_KEY  string = "READ_TIMEOUT"
-	WRITE_TIMEOUT_SEC_KEY string = "WRITE_TIMEOUT"
+	PORT_KEY              string        = "PORT"
+	IDLE_TIMEOUT_SEC_KEY  string        = "IDLE_TIMEOUT"
+	READ_TIMEOUT_SEC_KEY  string        = "READ_TIMEOUT"
+	WRITE_TIMEOUT_SEC_KEY string        = "WRITE_TIMEOUT"
+	HOUSEKEEPING_INTERVAL time.Duration = 30 * time.Second
 
 	// Database
 	DB_DSN_KEY               string        = "POSTGRES_DSN"

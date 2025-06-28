@@ -48,3 +48,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	WriteJSON(w, payload, http.StatusOK, nil)
 }
+
+func (a *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
+	panic("implement me")
+}

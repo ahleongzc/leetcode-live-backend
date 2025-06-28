@@ -8,6 +8,7 @@ package wire
 
 import (
 	"github.com/ahleongzc/leetcode-live-backend/cmd/app"
+	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
@@ -25,13 +26,15 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	sessionRepo := repo.NewSessionRepo(db)
-	authService := service.NewAuthService(sessionRepo)
+	userRepo := repo.NewUserRepo(db)
+	authService := service.NewAuthService(sessionRepo, userRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	healthHandler := handler.NewHealthHandler()
 	websocketConfig := config.LoadWebsocketConfig()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService)
 	logger := infra.NewZerologLogger()
 	middlewareMiddleware := middleware.NewMiddleware(logger)
-	application := app.NewApplication(authHandler, healthHandler, interviewHandler, middlewareMiddleware)
+	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
+	application := app.NewApplication(authHandler, healthHandler, interviewHandler, middlewareMiddleware, houseKeeper)
 	return application, nil
 }

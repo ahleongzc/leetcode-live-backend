@@ -2,31 +2,36 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
 	Logout(ctx context.Context, sessionID string) error
-	Register(ctx context.Context, email, password string) error
 	ValidateSession(ctx context.Context, sessionID string) (bool, error)
 }
 
 func NewAuthService(
 	sessionRepo repo.SessionRepo,
+	userRepo repo.UserRepo,
 ) AuthService {
 	return &AuthServiceImpl{
 		sessionRepo: sessionRepo,
+		userRepo:    userRepo,
 	}
 }
 
 type AuthServiceImpl struct {
 	sessionRepo repo.SessionRepo
+	userRepo    repo.UserRepo
 }
 
-// CheckIsLoggedIn implements AuthService.
 func (a *AuthServiceImpl) ValidateSession(ctx context.Context, sessionID string) (bool, error) {
 	session, err := a.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
@@ -46,22 +51,31 @@ func (a *AuthServiceImpl) ValidateSession(ctx context.Context, sessionID string)
 	return true, nil
 }
 
-// Logout implements AuthService.
 func (a *AuthServiceImpl) Logout(ctx context.Context, sessionID string) error {
 	err := a.sessionRepo.DeleteByID(ctx, sessionID)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
-// Register implements AuthService.
-func (a *AuthServiceImpl) Register(ctx context.Context, email string, password string) error {
-	panic("unimplemented")
+func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (string, error) {
+	user, err := a.userRepo.GetByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return "", common.ErrUnauthorized
+		}
+		return "", err
+	}
+
+	if !isSamePassword(user.Password, password) {
+		return "", common.ErrUnauthorized
+	}
+
+	return "", nil
 }
 
-// Login implements AuthService.
-func (a *AuthServiceImpl) Login(ctx context.Context, email string, password string) (string, error) {
-	panic("unimplemented")
+func isSamePassword(hashedPassword, password string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+	return err == nil
 }

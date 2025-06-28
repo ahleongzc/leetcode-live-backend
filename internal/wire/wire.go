@@ -5,6 +5,7 @@ package wire
 
 import (
 	"github.com/ahleongzc/leetcode-live-backend/cmd/app"
+	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
@@ -27,6 +28,7 @@ func InitializeApplication() (*app.Application, error) {
 
 		// Repo
 		repo.NewSessionRepo,
+		repo.NewUserRepo,
 		// repo.NewFileRepo,
 
 		// Infra
@@ -44,6 +46,9 @@ func InitializeApplication() (*app.Application, error) {
 
 		// Middleware
 		middleware.NewMiddleware,
+
+		// Housekeeping
+		background.NewHouseKeeper,
 
 		// Application
 		app.NewApplication,

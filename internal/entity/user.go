@@ -6,5 +6,5 @@ type User struct {
 	Password             string
 	LoginCount           int
 	IsDeleted            bool
-	LastLoginTimeStampMS int64
+	LastLoginTimeStampMS *int64
 }

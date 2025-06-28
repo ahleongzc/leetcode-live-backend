@@ -12,10 +12,10 @@ import (
 )
 
 type Middleware struct {
-	logger zerolog.Logger
+	logger *zerolog.Logger
 }
 
-func NewMiddleware(logger zerolog.Logger) *Middleware {
+func NewMiddleware(logger *zerolog.Logger) *Middleware {
 	return &Middleware{
 		logger: logger,
 	}

@@ -20,6 +20,8 @@ func main() {
 		panic(err)
 	}
 
+	app.StartBackgroundTasks()
+
 	serverConfig := config.LoadServerConfig()
 
 	server := &http.Server{

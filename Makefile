@@ -4,11 +4,14 @@
 run: build
 	@air
 
-build: fmt gen
+build: tidy fmt gen
 	@go build -o=./bin/app ./cmd
 
 gen:
 	@cd internal/wire && wire
+
+tidy:
+	@go mod tidy
 
 vet:
 	@go vet ./...

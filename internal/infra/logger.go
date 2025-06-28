@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func NewZerologLogger() zerolog.Logger {
+func NewZerologLogger() *zerolog.Logger {
 	var writer io.Writer
 
 	if util.IsDevEnv() {
@@ -22,5 +22,5 @@ func NewZerologLogger() zerolog.Logger {
 		writer = os.Stdout
 	}
 
-	return zerolog.New(writer).With().Timestamp().Logger()
+	return util.ToPtr(zerolog.New(writer).With().Timestamp().Logger())
 }
