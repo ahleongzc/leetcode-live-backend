@@ -37,6 +37,10 @@ type AuthScenarioImpl struct {
 
 // ValidateSession implements AuthScenario.
 func (a *AuthScenarioImpl) ValidateSession(ctx context.Context, sessionID string) error {
+	if sessionID == "" {
+		return common.ErrUnauthorized
+	}
+
 	session, err := a.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {

@@ -16,6 +16,7 @@ import (
 type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
 	Logout(ctx context.Context, sessionID string) error
+	ValidateSession(ctx context.Context, sessionID string) error
 }
 
 func NewAuthService(
@@ -34,6 +35,11 @@ type AuthServiceImpl struct {
 	authScenario scenario.AuthScenario
 	sessionRepo  repo.SessionRepo
 	userRepo     repo.UserRepo
+}
+
+// ValidateSession implements AuthService.
+func (a *AuthServiceImpl) ValidateSession(ctx context.Context, sessionID string) error {
+	return a.authScenario.ValidateSession(ctx, sessionID)
 }
 
 func (a *AuthServiceImpl) Logout(ctx context.Context, sessionID string) error {

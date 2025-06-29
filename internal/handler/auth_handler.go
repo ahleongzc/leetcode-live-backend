@@ -3,6 +3,7 @@ package handler
 import (
 	"net/http"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
@@ -42,6 +43,19 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	payload.Add("session_id", sessionID)
 
 	WriteJSONHTTP(w, payload, http.StatusOK, nil)
+}
+
+func (a *AuthHandler) GetAuthStatus(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	sessionID := r.Header.Get(common.SESSION_ID_HEADER_KEY)
+
+	err := a.authService.ValidateSession(ctx, sessionID)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	WriteJSONHTTP(w, nil, http.StatusOK, nil)
 }
 
 func (a *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
