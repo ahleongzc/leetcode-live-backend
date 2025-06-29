@@ -1,7 +1,7 @@
 package config
 
 import (
-	"os"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -16,28 +16,30 @@ type DatabaseConfig struct {
 	MaxIdleTime        time.Duration
 }
 
-func LoadDatabaseConfig() *DatabaseConfig {
-	dsn := os.Getenv(common.DB_DSN_KEY)
+func LoadDatabaseConfig() (*DatabaseConfig, error) {
+	dsn := util.GetEnvOr(common.DB_DSN_KEY, "")
 
 	maxOpenConnections := 25
 	maxIdleConnections := 25
 	maxIdleTime := 30 * time.Second
 
-	if util.IsProdEnv() {
-		maxOpenConnValue, err := strconv.Atoi(os.Getenv(common.DB_MAX_OPEN_CONN_KEY))
-		if nil == err {
-			maxOpenConnections = maxOpenConnValue
-		}
+	maxOpenConnValue, err := strconv.Atoi(util.GetEnvOr(common.DB_MAX_OPEN_CONN_KEY, "25"))
+	if nil == err {
+		maxOpenConnections = maxOpenConnValue
+	}
 
-		maxIdleConnValue, err := strconv.Atoi(os.Getenv(common.DB_MAX_IDLE_CONN_KEY))
-		if nil == err {
-			maxIdleConnections = maxIdleConnValue
-		}
+	maxIdleConnValue, err := strconv.Atoi(util.GetEnvOr(common.DB_MAX_IDLE_CONN_KEY, "25"))
+	if nil == err {
+		maxIdleConnections = maxIdleConnValue
+	}
 
-		maxIdleTimeSecondsValue, err := strconv.Atoi(os.Getenv(common.DB_MAX_IDLE_TIME_SEC_KEY))
-		if nil == err {
-			maxIdleTime = time.Duration(maxIdleTimeSecondsValue) * time.Second
-		}
+	maxIdleTimeSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.DB_MAX_IDLE_TIME_SEC_KEY, "300"))
+	if nil == err {
+		maxIdleTime = time.Duration(maxIdleTimeSecondsValue) * time.Second
+	}
+
+	if dsn == "" {
+		return nil, fmt.Errorf("database dsn cannot be empty: %w", common.ErrInternalServerError)
 	}
 
 	return &DatabaseConfig{
@@ -45,5 +47,5 @@ func LoadDatabaseConfig() *DatabaseConfig {
 		MaxOpenConnections: maxOpenConnections,
 		MaxIdleConnections: maxIdleConnections,
 		MaxIdleTime:        maxIdleTime,
-	}
+	}, nil
 }

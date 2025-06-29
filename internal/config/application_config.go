@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"strconv"
 	"time"
 
@@ -17,25 +16,25 @@ type ServerConfig struct {
 }
 
 func LoadServerConfig() *ServerConfig {
-	address := "localhost:" + os.Getenv(common.PORT_KEY)
+	address := "localhost:" + util.GetEnvOr(common.PORT_KEY, "8080")
 	idleTimeout := time.Minute
 	readTimeout := 10 * time.Second
 	writeTimeout := 30 * time.Second
 
 	if util.IsProdEnv() {
-		address = "0.0.0.0:" + os.Getenv(common.PORT_KEY)
+		address = "0.0.0.0:" + util.GetEnvOr(common.PORT_KEY, "5000")
 
-		idleTimeoutSecondsValue, err := strconv.Atoi(os.Getenv(common.IDLE_TIMEOUT_SEC_KEY))
+		idleTimeoutSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.IDLE_TIMEOUT_SEC_KEY, "60"))
 		if nil == err {
 			idleTimeout = time.Duration(idleTimeoutSecondsValue) * time.Second
 		}
 
-		readTimeoutSecondsValue, err := strconv.Atoi(os.Getenv(common.READ_TIMEOUT_SEC_KEY))
+		readTimeoutSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.READ_TIMEOUT_SEC_KEY, "10"))
 		if nil == err {
 			readTimeout = time.Duration(readTimeoutSecondsValue) * time.Second
 		}
 
-		writeTimeoutSecondsValue, err := strconv.Atoi(os.Getenv(common.WRITE_TIMEOUT_SEC_KEY))
+		writeTimeoutSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.WRITE_TIMEOUT_SEC_KEY, "30"))
 		if nil == err {
 			writeTimeout = time.Duration(writeTimeoutSecondsValue) * time.Second
 		}

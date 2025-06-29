@@ -7,9 +7,20 @@ import (
 )
 
 func IsDevEnv() bool {
-	return os.Getenv(common.ENVIRONMENT_KEY) == common.DEV_ENVIRONMENT
+	return GetEnvOr(common.ENVIRONMENT_KEY, common.DEV_ENVIRONMENT) == common.DEV_ENVIRONMENT
 }
 
 func IsProdEnv() bool {
-	return os.Getenv(common.ENVIRONMENT_KEY) == common.PROD_ENVIRONMENT
+	return GetEnvOr(common.ENVIRONMENT_KEY, common.DEV_ENVIRONMENT) == common.PROD_ENVIRONMENT
+}
+
+func GetEnvOr(envKey string, defaultValue string) string {
+	value, ok := os.LookupEnv(envKey)
+	if !ok {
+		return defaultValue
+	}
+	if value == "" {
+		return defaultValue
+	}
+	return value
 }

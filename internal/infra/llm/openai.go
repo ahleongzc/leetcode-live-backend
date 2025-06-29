@@ -2,17 +2,24 @@ package llm
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 )
 
 type OpenAI struct {
-	Model string
+	model      string
+	baseURL    string
+	apiKey     string
+	httpClient *http.Client
 }
 
-func NewOpenAILLM(model string) *OpenAI {
+func NewOpenAILLM(model, baseURL, apiKey string, httpClient *http.Client) *OpenAI {
 	return &OpenAI{
-		Model: model,
+		model:      model,
+		baseURL:    baseURL,
+		apiKey:     apiKey,
+		httpClient: httpClient,
 	}
 }
 

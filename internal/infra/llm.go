@@ -2,22 +2,28 @@ package infra
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
 	"github.com/ahleongzc/leetcode-live-backend/internal/model"
-	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
 type LLM interface {
 	ChatCompletions(ctx context.Context, request *model.ChatCompletionsRequest) (*model.ChatCompletionsResponse, error)
 }
 
-func NewLLM() LLM {
-	if util.IsDevEnv() {
-		return llm.NewOllamaLLM("gemma3:1b")
+func NewLLM(
+	llmConfig *config.LLMConfig, httpClient *http.Client,
+) (LLM, error) {
+	switch llmConfig.Provider {
+	case config.LLM_DEV_PROVIDER:
+		return llm.NewOllamaLLM(llmConfig.Model, llmConfig.BaseURL, httpClient), nil
+	case common.OPENAI:
+		return llm.NewOpenAILLM(llmConfig.Model, llmConfig.BaseURL, llmConfig.APIKey, httpClient), nil
+	default:
+		return nil, fmt.Errorf("unsupported LLM provider %s: %w", llmConfig.Provider, common.ErrInternalServerError)
 	}
-	if util.IsProdEnv() {
-		return llm.NewOpenAILLM("gpt-4o-mini")
-	}
-	return nil
 }

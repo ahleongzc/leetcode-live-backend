@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
@@ -44,7 +45,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	sessionID := r.Header.Get("session-id")
+	sessionID := r.URL.Query().Get("session_id")
 	questionID := r.URL.Query().Get("question_id")
 
 	valid, err := i.authService.ValidateSession(ctx, sessionID)
@@ -89,7 +90,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 		cancel()
 	}
 
-	i.logger.Info().Msg("websocket connection closed")
+	i.logger.Info().Msg(fmt.Sprintf("websocket connection closed for %s", r.RemoteAddr))
 }
 
 func (i *InterviewHandler) readPump(
@@ -150,7 +151,6 @@ func (i *InterviewHandler) readPump(
 			Type:    model.InterviewMessageType(websocketMessage.Type),
 			Content: websocketMessage.Content,
 		}
-
 		select {
 		case messageChan <- message:
 		case <-ctx.Done():
@@ -171,7 +171,6 @@ func (i *InterviewHandler) writePump(
 			if !ok {
 				return
 			}
-
 			payload := util.NewJSONPayload()
 			payload.Add("type", message.Type)
 			payload.Add("content", message.Content)

@@ -21,7 +21,10 @@ import (
 // Injectors from wire.go:
 
 func InitializeApplication() (*app.Application, error) {
-	databaseConfig := config.LoadDatabaseConfig()
+	databaseConfig, err := config.LoadDatabaseConfig()
+	if err != nil {
+		return nil, err
+	}
 	db, err := infra.NewPostgresDatabase(databaseConfig)
 	if err != nil {
 		return nil, err
@@ -32,20 +35,37 @@ func InitializeApplication() (*app.Application, error) {
 	authHandler := handler.NewAuthHandler(authService)
 	healthHandler := handler.NewHealthHandler()
 	websocketConfig := config.LoadWebsocketConfig()
-	llm := infra.NewLLM()
-	interviewRepo := repo.NewInterviewRepo(db)
-	objectStorageConfig := config.LoadObjectStorageConfig()
-	client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
+	llmConfig, err := config.LoadLLMConfig()
 	if err != nil {
 		return nil, err
 	}
-	fileRepo := repo.NewFileRepo(client, objectStorageConfig)
+	client := infra.NewHTTPCLient()
+	llm, err := infra.NewLLM(llmConfig, client)
+	if err != nil {
+		return nil, err
+	}
+	interviewRepo := repo.NewInterviewRepo(db)
+	objectStorageConfig, err := config.LoadObjectStorageConfig()
+	if err != nil {
+		return nil, err
+	}
+	s3Client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
+	if err != nil {
+		return nil, err
+	}
+	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
 	authScenario := scenario.NewAuthScenario(userRepo, sessionRepo)
 	transcriptRepo := repo.NewTranscriptRepo(db)
 	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
 	intentClassifier := scenario.NewIntentClassifier()
-	ttsConfig := config.LoadTTSConfig()
-	tts := infra.NewTTS(ttsConfig)
+	ttsConfig, err := config.LoadTTSConfig()
+	if err != nil {
+		return nil, err
+	}
+	tts, err := infra.NewTTS(ttsConfig, client)
+	if err != nil {
+		return nil, err
+	}
 	interviewService := service.NewInterviewService(llm, interviewRepo, fileRepo, authScenario, transcriptManager, intentClassifier, tts)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)

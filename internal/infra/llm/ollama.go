@@ -14,17 +14,15 @@ import (
 
 type Ollama struct {
 	model      string
-	host       string
+	baseURL    string
 	httpClient *http.Client
 }
 
-func NewOllamaLLM(model string) *Ollama {
+func NewOllamaLLM(model, baseURL string, httpClient *http.Client) *Ollama {
 	return &Ollama{
-		model: model,
-		host:  common.OLLAMA_BASE_URL,
-		httpClient: &http.Client{
-			Timeout: common.HTTP_REQUEST_TIMEOUT,
-		},
+		model:      model,
+		baseURL:    baseURL,
+		httpClient: httpClient,
 	}
 }
 
@@ -33,7 +31,7 @@ func (o *Ollama) ChatCompletions(ctx context.Context, chatCompletionsRequest *mo
 		return nil, fmt.Errorf("chatCompletionRequest cannot be nil when calling Ollama: %w", common.ErrInternalServerError)
 	}
 
-	url := o.host + "/v1/chat/completions"
+	url := o.baseURL + "/v1/chat/completions"
 	ollamaReq, err := o.convertToOllamaChatCompletionsRequest(chatCompletionsRequest)
 	if err != nil {
 		return nil, err

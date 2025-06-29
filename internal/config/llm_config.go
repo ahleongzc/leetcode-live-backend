@@ -1,29 +1,43 @@
 package config
 
 import (
-	"os"
+	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
-type LLMModel string
-
 const (
-	GPT_4O_MINI LLMModel = "gpt-4o-mini"
+	LLM_DEV_PROVIDER string = common.OLLAMA
+	LLM_DEV_MODEL    string = "gemma3:1b"
+	LLM_DEV_BASE_URL string = "http://localhost:11434"
 )
 
 type LLMConfig struct {
-	Model   LLMModel
-	BaseURL string
-	APIKey  string
+	Provider string
+	Model    string
+	BaseURL  string
+	APIKey   string
 }
 
-func LoadLLMConfig() *LLMConfig {
-	apiKey := os.Getenv(common.OPENAI_API_KEY)
+func LoadLLMConfig() (*LLMConfig, error) {
+	provider := util.GetEnvOr(common.LLM_PROVIDER_KEY, LLM_DEV_PROVIDER)
+	model := util.GetEnvOr(common.LLM_MODEL_KEY, LLM_DEV_MODEL)
+	baseURL := util.GetEnvOr(common.LLM_BASE_URL_KEY, LLM_DEV_BASE_URL)
+	apiKey := util.GetEnvOr(common.LLM_API_KEY, "")
+
+	if provider == "" || model == "" || baseURL == "" {
+		return nil, fmt.Errorf("missing llm config, provider=%s model=%s baseURL=%s: %w", provider, model, baseURL, common.ErrInternalServerError)
+	}
+
+	if provider != LLM_DEV_PROVIDER && apiKey == "" {
+		return nil, fmt.Errorf("missing api key for provider=%s: %w", provider, common.ErrInternalServerError)
+	}
 
 	return &LLMConfig{
-		BaseURL: common.OPENAI_BASE_URL,
-		Model:   GPT_4O_MINI,
-		APIKey:  apiKey,
-	}
+		Provider: provider,
+		Model:    model,
+		BaseURL:  baseURL,
+		APIKey:   apiKey,
+	}, nil
 }

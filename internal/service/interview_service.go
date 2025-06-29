@@ -118,7 +118,8 @@ func (i *InterviewServiceImpl) giveHints(ctx context.Context, interviewID int, e
 		Do not give the full solution. 
 		Tailor your hints to their level of understanding and avoid repeating information they've already figured out. 
 		If the candidate appears confused or stuck, offer a nudge in the right direction without revealing the answer.
-		Keep your hints short and simple, and reply like how you would in a real life interview.`,
+		Keep your hints short and simple, and reply like how you would in a real life interview.
+		The question that the candidate is solving is Two Sum`,
 	})
 
 	for _, transcript := range history {
@@ -147,7 +148,7 @@ func (i *InterviewServiceImpl) giveHints(ctx context.Context, interviewID int, e
 	}
 
 	// TODO: Make the file name follow a structure
-	url, err := i.fileRepo.Upload(ctx, "test.mp3", reader, nil)
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
 	if err != nil {
 		return nil, err
 	}

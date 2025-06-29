@@ -19,32 +19,41 @@ const (
 	READ_TIMEOUT_SEC_KEY  string        = "READ_TIMEOUT"
 	WRITE_TIMEOUT_SEC_KEY string        = "WRITE_TIMEOUT"
 	HOUSEKEEPING_INTERVAL time.Duration = 5 * time.Minute
+	WRITE_TO_FILE_TIMEOUT time.Duration = 5 * time.Second
 
 	// Database
-	DB_DSN_KEY               string        = "POSTGRES_DSN"
-	DB_MAX_OPEN_CONN_KEY     string        = "POSTGRES_MAX_OPEN_CONN"
-	DB_MAX_IDLE_CONN_KEY     string        = "POSTGRES_MAX_IDLE_CONN"
-	DB_MAX_IDLE_TIME_SEC_KEY string        = "POSTGRES_MAX_IDLE_TIME_SEC"
-	DB_QUERY_TIMEOUT         time.Duration = time.Second
+	DB_DSN_KEY               string        = "DB_DSN"
+	DB_MAX_OPEN_CONN_KEY     string        = "DB_MAX_OPEN_CONN"
+	DB_MAX_IDLE_CONN_KEY     string        = "DB_MAX_IDLE_CONN"
+	DB_MAX_IDLE_TIME_SEC_KEY string        = "DB_MAX_IDLE_TIME_SEC"
+	DB_QUERY_TIMEOUT         time.Duration = 1 * time.Second
 
-	// Cloudflare R2
-	R2_ACCESS_KEY                 string        = "R2_ACCESS_KEY"
-	R2_SECRET_KEY                 string        = "R2_SECRET_KEY"
-	R2_ENDPOINT_KEY               string        = "R2_ENDPOINT"
-	R2_BUCKET_KEY                 string        = "R2_BUCKET"
-	R2_REGION_KEY                 string        = "R2_REGION"
-	FILE_UPLOAD_TIMEOUT           time.Duration = time.Minute
+	// Object Storage
+	OBJECT_STORAGE_ACCESS_KEY     string        = "OBJECT_STORAGE_ACCESS_KEY"
+	OBJECT_STORAGE_SECRET_KEY     string        = "OBJECT_STORAGE_SECRET_KEY"
+	OBJECT_STORAGE_ENDPOINT_KEY   string        = "OBJECT_STORAGE_ENDPOINT"
+	OBJECT_STORAGE_BUCKET_KEY     string        = "OBJECT_STORAGE_BUCKET"
+	OBJECT_STORAGE_REGION_KEY     string        = "OBJECT_STORAGE_REGION"
+	FILE_UPLOAD_TIMEOUT           time.Duration = 10 * time.Second
 	PRESIGNED_URL_EXPIRY_DURATION time.Duration = 15 * time.Minute
 
-	// OpenAI
-	OPENAI_API_KEY  string = "OPENAI_API_KEY"
-	OPENAI_BASE_URL string = "https://api.openai.com"
+	// AI Providers
+	OLLAMA string = "ollama"
+	OPENAI string = "openai"
 
-	// Ollama
-	OLLAMA_BASE_URL string = "http://localhost:11434"
+	// LLM
+	LLM_PROVIDER_KEY string = "LLM_PROVIDER"
+	LLM_MODEL_KEY    string = "LLM_MODEL"
+	LLM_BASE_URL_KEY string = "LLM_BASE_URL"
+	LLM_API_KEY      string = "LLM_API_KEY"
 
 	// TTS
-	TTS_REQUEST_TIMEOUT time.Duration = 10 * time.Second
+	TTS_PROVIDER_KEY string = "TTS_PROVIDER"
+	TTS_MODEL_KEY    string = "TTS_MODEL"
+	TTS_VOICE_KEY    string = "TTS_VOICE"
+	TTS_BASE_URL_KEY string = "TTS_BASE_URL"
+	TTS_API_KEY      string = "TTS_API_KEY"
+	TTS_LANGUAGE_KEY string = "TTS_LANGUAGE"
 
 	// Tables
 	SESSION_TABLE_NAME    string = "sessions"
@@ -62,9 +71,10 @@ const (
 
 var (
 	DEV_TRUSTED_ORIGINS = map[string]struct{}{
-		"localhost": {},
-		"0.0.0.0":   {},
-		"":          {},
+		"localhost":            {},
+		"0.0.0.0":              {},
+		"https://leetcode.com": {},
+		"":                     {},
 	}
 
 	PROD_TRUSTED_ORIGINS = map[string]struct{}{

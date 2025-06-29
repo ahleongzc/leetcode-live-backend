@@ -46,8 +46,10 @@ func InitializeApplication() (*app.Application, error) {
 		infra.NewPostgresDatabase,
 		infra.NewZerologLogger,
 		infra.NewCloudflareR2ObjectStorageClient,
+		infra.NewHTTPCLient,
 
 		// Config
+		config.LoadLLMConfig,
 		config.LoadDatabaseConfig,
 		config.LoadObjectStorageConfig,
 		config.LoadTTSConfig,
