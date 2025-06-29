@@ -42,7 +42,8 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/login", a.authHandler.Login)
 	mux.HandleFunc("POST /v1/logout", a.authHandler.Logout)
 
-	mux.HandleFunc("GET /v1/start-interview", a.interviewHandler.JoinInterview)
+	mux.HandleFunc("POST /v1/set-up-interview", a.interviewHandler.SetUpInterview)
+	mux.HandleFunc("GET /v1/join-interview", a.interviewHandler.JoinInterview)
 
 	return alice.New(
 		a.middleware.RecoverPanic,

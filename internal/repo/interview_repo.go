@@ -10,14 +10,10 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 )
 
-type InterviewQuery struct {
-	Where map[string]any
-}
-
 type InterviewRepo interface {
 	Create(ctx context.Context, interview *entity.Interview) error
 	Update(ctx context.Context, interview *entity.Interview) error
-	GetByUserIDAndExternalQuestionID(ctx context.Context, userID int, externalQuestionID string) (*entity.Interview, error)
+	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 }
 
 func NewInterviewRepo(
@@ -32,21 +28,19 @@ type InterviewRepoImpl struct {
 	db *sql.DB
 }
 
-func (i *InterviewRepoImpl) GetByUserIDAndExternalQuestionID(ctx context.Context, userID int, externalQuestionID string) (*entity.Interview, error) {
+func (i *InterviewRepoImpl) GetByToken(ctx context.Context, token string) (*entity.Interview, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{userID, externalQuestionID}
+	args := []any{token}
 
 	query := fmt.Sprintf(`
 		SELECT 
-			id, user_id, external_question_id, start_timestamp_ms, end_timestamp_ms
+			id, user_id, question_id, start_timestamp_ms, end_timestamp_ms, token
 		FROM 
 			%s
 		WHERE 
-			user_id = $1 
-				AND
-			external_question_id = $2
+			token = $1
 	`, common.INTERVIEW_TABLE_NAME)
 
 	interview := &entity.Interview{}
@@ -54,15 +48,16 @@ func (i *InterviewRepoImpl) GetByUserIDAndExternalQuestionID(ctx context.Context
 		Scan(
 			&interview.ID,
 			&interview.UserID,
-			&interview.ExternalQuestionID,
+			&interview.QuestionID,
 			&interview.StartTimestampMS,
 			&interview.EndTimestampMS,
+			&interview.Token,
 		)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
 		}
-		return nil, fmt.Errorf("unable to get interview with user id %d and external question id %s, %s: %w", userID, externalQuestionID, err.Error(), common.ErrInternalServerError)
+		return nil, fmt.Errorf("unable to get interview with token %s, %s: %w", token, err.Error(), common.ErrInternalServerError)
 	}
 
 	return interview, nil
@@ -73,13 +68,13 @@ func (i *InterviewRepoImpl) Create(ctx context.Context, interview *entity.Interv
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{interview.UserID, interview.ExternalQuestionID, interview.StartTimestampMS}
+	args := []any{interview.UserID, interview.QuestionID, interview.StartTimestampMS, interview.EndTimestampMS, interview.Token}
 
 	query := fmt.Sprintf(`
 		INSERT INTO %s
-		(user_id, external_question_id, start_timestamp_ms)
+			(user_id, question_id, start_timestamp_ms, end_timestamp_ms, token)
 		VALUES
-		($1, $2, $3)
+			($1, $2, $3, $4, $5)
 	`, common.INTERVIEW_TABLE_NAME)
 
 	_, err := i.db.ExecContext(ctx, query, args...)
@@ -95,18 +90,19 @@ func (i *InterviewRepoImpl) Update(ctx context.Context, interview *entity.Interv
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{interview.UserID, interview.ExternalQuestionID, interview.StartTimestampMS, interview.EndTimestampMS, interview.ID}
+	args := []any{interview.UserID, interview.StartTimestampMS, interview.EndTimestampMS, interview.QuestionID, interview.Token, interview.ID}
 
 	query := fmt.Sprintf(`
         UPDATE 
 			%s 
         SET 
 			user_id = $1,
-			external_question_id = $2,
-			start_timestamp_ms = $3,
-			expire_timestamp_ms = $4
+			start_timestamp_ms = $2,
+			end_timestamp_ms = $3,
+			question_id = $4,
+			token = $5
         WHERE 
-			id = $5
+			id = $6
     `, common.INTERVIEW_TABLE_NAME)
 
 	result, err := i.db.ExecContext(ctx, query, args...)

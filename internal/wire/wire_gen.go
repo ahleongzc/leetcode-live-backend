@@ -29,44 +29,47 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	sessionRepo := repo.NewSessionRepo(db)
 	userRepo := repo.NewUserRepo(db)
-	authService := service.NewAuthService(sessionRepo, userRepo)
+	sessionRepo := repo.NewSessionRepo(db)
+	authScenario := scenario.NewAuthScenario(userRepo, sessionRepo)
+	authService := service.NewAuthService(authScenario, sessionRepo, userRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	healthHandler := handler.NewHealthHandler()
 	websocketConfig := config.LoadWebsocketConfig()
-	llmConfig, err := config.LoadLLMConfig()
-	if err != nil {
-		return nil, err
-	}
-	client := infra.NewHTTPCLient()
-	llm, err := infra.NewLLM(llmConfig, client)
-	if err != nil {
-		return nil, err
-	}
-	interviewRepo := repo.NewInterviewRepo(db)
+	transcriptRepo := repo.NewTranscriptRepo(db)
+	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
+	questionRepo := repo.NewQuestionRepo(db)
 	objectStorageConfig, err := config.LoadObjectStorageConfig()
 	if err != nil {
 		return nil, err
 	}
-	s3Client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
+	client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
 	if err != nil {
 		return nil, err
 	}
-	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
-	authScenario := scenario.NewAuthScenario(userRepo, sessionRepo)
-	transcriptRepo := repo.NewTranscriptRepo(db)
-	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
-	intentClassifier := scenario.NewIntentClassifier()
+	fileRepo := repo.NewFileRepo(client, objectStorageConfig)
+	llmConfig, err := config.LoadLLMConfig()
+	if err != nil {
+		return nil, err
+	}
+	httpClient := infra.NewHTTPCLient()
+	llm, err := infra.NewLLM(llmConfig, httpClient)
+	if err != nil {
+		return nil, err
+	}
 	ttsConfig, err := config.LoadTTSConfig()
 	if err != nil {
 		return nil, err
 	}
-	tts, err := infra.NewTTS(ttsConfig, client)
+	tts, err := infra.NewTTS(ttsConfig, httpClient)
 	if err != nil {
 		return nil, err
 	}
-	interviewService := service.NewInterviewService(llm, interviewRepo, fileRepo, authScenario, transcriptManager, intentClassifier, tts)
+	interviewScenario := scenario.NewInterviewScenario(transcriptManager, questionRepo, fileRepo, llm, tts)
+	questionScenario := scenario.NewQuestionScenario(questionRepo)
+	intentClassifier := scenario.NewIntentClassifier()
+	interviewRepo := repo.NewInterviewRepo(db)
+	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, transcriptManager, intentClassifier, interviewRepo)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)

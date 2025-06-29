@@ -2,15 +2,13 @@ package service
 
 import (
 	"context"
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
-	"github.com/google/uuid"
+	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -18,44 +16,24 @@ import (
 type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
 	Logout(ctx context.Context, sessionID string) error
-	ValidateSession(ctx context.Context, sessionID string) (bool, error)
 }
 
 func NewAuthService(
+	authScenario scenario.AuthScenario,
 	sessionRepo repo.SessionRepo,
 	userRepo repo.UserRepo,
 ) AuthService {
 	return &AuthServiceImpl{
-		sessionRepo: sessionRepo,
-		userRepo:    userRepo,
+		authScenario: authScenario,
+		sessionRepo:  sessionRepo,
+		userRepo:     userRepo,
 	}
 }
 
 type AuthServiceImpl struct {
-	sessionRepo repo.SessionRepo
-	userRepo    repo.UserRepo
-}
-
-func (a *AuthServiceImpl) ValidateSession(ctx context.Context, sessionID string) (bool, error) {
-	session, err := a.sessionRepo.GetByID(ctx, sessionID)
-	if err != nil {
-		if errors.Is(err, common.ErrNotFound) {
-			return false, common.ErrUnauthorized
-		}
-		return false, err
-	}
-
-	if session.ExpireTimestampMS < time.Now().UnixMilli() {
-		return false, nil
-	}
-
-	session.ExpireTimestampMS = time.Now().Add(48 * time.Hour).UnixMilli()
-	err = a.sessionRepo.Update(ctx, session)
-	if err != nil {
-		return false, err
-	}
-
-	return true, nil
+	authScenario scenario.AuthScenario
+	sessionRepo  repo.SessionRepo
+	userRepo     repo.UserRepo
 }
 
 func (a *AuthServiceImpl) Logout(ctx context.Context, sessionID string) error {
@@ -80,7 +58,7 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 	}
 
 	session := &entity.Session{
-		ID:                generateSessionID(),
+		ID:                a.authScenario.GenerateRandomToken(),
 		UserID:            user.ID,
 		ExpireTimestampMS: time.Now().Add(48 * time.Hour).UnixMilli(),
 	}
@@ -96,13 +74,4 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 func isSamePassword(hashedPassword, password string) bool {
 	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
 	return err == nil
-}
-
-func generateSessionID() string {
-	b := make([]byte, 32)
-	_, err := rand.Read(b)
-	if err != nil {
-		return uuid.NewString()
-	}
-	return base64.RawURLEncoding.EncodeToString(b)
 }

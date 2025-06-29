@@ -60,9 +60,11 @@ const (
 	USER_TABLE_NAME       string = "users"
 	TRANSCRIPT_TABLE_NAME string = "transcripts"
 	INTERVIEW_TABLE_NAME  string = "interviews"
+	QUESTION_TABLE_NAME   string = "questions"
 
 	// HTTP
 	HTTP_REQUEST_TIMEOUT       time.Duration = time.Minute
+	SESSION_ID_HEADER_KEY      string        = "X-Session-ID"
 	AUTHORIZATION              string        = "Authorization"
 	CONTENT_TYPE               string        = "Content-Type"
 	ACCEPT                     string        = "Accept"

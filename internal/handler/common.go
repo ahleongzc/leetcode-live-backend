@@ -67,6 +67,7 @@ func ReadJSONBytes(data []byte, dst any) error {
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 

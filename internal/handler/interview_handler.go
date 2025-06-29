@@ -41,24 +41,35 @@ type WebsocketMessageStruct struct {
 	Content string `json:"content"`
 }
 
-func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request) {
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
+func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	sessionID := r.Header.Get(common.SESSION_ID_HEADER_KEY)
+	request := &struct {
+		QuestionID  string `json:"question_id"`
+		Description string `json:"description"`
+	}{}
 
-	sessionID := r.URL.Query().Get("session_id")
-	questionID := r.URL.Query().Get("question_id")
-
-	valid, err := i.authService.ValidateSession(ctx, sessionID)
+	err := ReadJSONHTTPReq(w, r, request)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
 	}
-	if !valid {
-		HandleErrorResponseHTTP(w, common.ErrUnauthorized)
+
+	err = i.interviewService.SetUpInterview(ctx, sessionID, request.QuestionID, request.Description)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
 		return
 	}
 
-	interview, err := i.interviewService.GetInterviewDetails(ctx, sessionID, questionID)
+	WriteJSONHTTP(w, nil, http.StatusOK, nil)
+}
+
+func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	token := r.URL.Query().Get("token")
+	interview, err := i.interviewService.GetInterviewDetails(ctx, token)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
