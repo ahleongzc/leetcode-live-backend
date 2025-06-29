@@ -19,11 +19,6 @@ func NewAuthHandler(
 	}
 }
 
-type LoginRequest struct {
-	Email    string `json:"email"`
-	Password string `json:"password"`
-}
-
 func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	request := &struct {

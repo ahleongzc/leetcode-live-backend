@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
@@ -13,8 +15,10 @@ import (
 
 type InterviewService interface {
 	ProcessInterviewMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error)
-	GetInterviewDetails(ctx context.Context, token string) (*entity.Interview, error)
-	SetUpInterview(ctx context.Context, sessionID, externalQuestionID, description string) error
+	// Returns the id of the interview
+	ConsumeInterviewToken(ctx context.Context, token string) (int, error)
+	// Returns the one-off token that is used to validate the incoming websocket request
+	SetUpInterview(ctx context.Context, sessionID, externalQuestionID, description string) (string, error)
 }
 
 func NewInterviewService(
@@ -44,15 +48,15 @@ type InterviewServiceImpl struct {
 	interviewRepo     repo.InterviewRepo
 }
 
-func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionID, externalQuestionID, description string) error {
+func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionID, externalQuestionID, description string) (string, error) {
 	user, err := i.authScenario.GetUserFromSessionID(ctx, sessionID)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	questionID, err := i.questionScenario.GetOrCreateQuestion(ctx, externalQuestionID, description)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	token := i.authScenario.GenerateRandomToken()
@@ -66,10 +70,10 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionID, ex
 
 	err = i.interviewRepo.Create(ctx, interview)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return nil
+	return token, nil
 }
 
 func (i *InterviewServiceImpl) ProcessInterviewMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error) {
@@ -112,6 +116,21 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID int
 	}
 }
 
-func (i *InterviewServiceImpl) GetInterviewDetails(ctx context.Context, token string) (*entity.Interview, error) {
-	return nil, nil
+func (i *InterviewServiceImpl) ConsumeInterviewToken(ctx context.Context, token string) (int, error) {
+	interview, err := i.interviewRepo.GetByToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return 0, common.ErrUnauthorized
+		}
+		return 0, err
+	}
+
+	interview.Token = nil
+
+	err = i.interviewRepo.Update(ctx, interview)
+	if err != nil {
+		return 0, err
+	}
+
+	return interview.ID, nil
 }

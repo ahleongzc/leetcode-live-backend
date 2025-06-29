@@ -55,13 +55,16 @@ func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	err = i.interviewService.SetUpInterview(ctx, sessionID, request.QuestionID, request.Description)
+	token, err := i.interviewService.SetUpInterview(ctx, sessionID, request.QuestionID, request.Description)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
 	}
 
-	WriteJSONHTTP(w, nil, http.StatusOK, nil)
+	payload := util.NewJSONPayload()
+	payload.Add("token", token)
+
+	WriteJSONHTTP(w, payload, http.StatusOK, nil)
 }
 
 func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request) {
@@ -69,7 +72,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	defer cancel()
 
 	token := r.URL.Query().Get("token")
-	interview, err := i.interviewService.GetInterviewDetails(ctx, token)
+	interviewID, err := i.interviewService.ConsumeInterviewToken(ctx, token)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -87,7 +90,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 
 	go func() {
 		defer close(respondChan)
-		i.readPump(ctx, interview.ID, conn, respondChan, errChan)
+		i.readPump(ctx, interviewID, conn, respondChan, errChan)
 	}()
 
 	go func() {
