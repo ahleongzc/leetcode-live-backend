@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
@@ -14,7 +15,7 @@ import (
 )
 
 type InterviewService interface {
-	ProcessInterviewMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error)
+	ProcessIncomingMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error)
 	// Returns the id of the interview
 	ConsumeInterviewToken(ctx context.Context, token string) (int, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
@@ -25,7 +26,6 @@ func NewInterviewService(
 	interviewScenario scenario.InterviewScenario,
 	authScenario scenario.AuthScenario,
 	questionScenario scenario.QuestionScenario,
-	transcriptManager scenario.TranscriptManager,
 	intentClassifier scenario.IntentClassifier,
 	interviewRepo repo.InterviewRepo,
 ) InterviewService {
@@ -33,7 +33,6 @@ func NewInterviewService(
 		questionScenario:  questionScenario,
 		interviewScenario: interviewScenario,
 		authScenario:      authScenario,
-		transcriptManager: transcriptManager,
 		intentClassifier:  intentClassifier,
 		interviewRepo:     interviewRepo,
 	}
@@ -76,7 +75,7 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionID, ex
 	return token, nil
 }
 
-func (i *InterviewServiceImpl) ProcessInterviewMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error) {
+func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error) {
 	if err := i.transcriptManager.WriteCandidate(ctx, interviewID, message.Content); err != nil {
 		return nil, err
 	}
@@ -95,24 +94,17 @@ func (i *InterviewServiceImpl) ProcessInterviewMessage(ctx context.Context, inte
 }
 
 func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID int, intent scenario.IntentType) (*model.InterviewMessage, error) {
-	if intent == scenario.NO_INTENT {
-		return nil, nil
-	}
-
-	err := i.transcriptManager.Flush(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
 	switch intent {
+	case scenario.NO_INTENT:
+		return i.interviewScenario.Listen(ctx, interviewID)
 	case scenario.HINT_REQUEST:
-		return i.interviewScenario.CandidateAsksForHints(ctx, interviewID)
+		return i.interviewScenario.GiveHints(ctx, interviewID)
 	case scenario.CLARIFICATION_REQUEST:
-		return i.interviewScenario.CandidateAsksForClarification(ctx, interviewID)
+		return i.interviewScenario.Clarify(ctx, interviewID)
 	case scenario.END_REQUEST:
-		return i.interviewScenario.CandidateWantsToEnd(ctx, interviewID)
+		return i.interviewScenario.EndInterview(ctx, interviewID)
 	default:
-		return nil, nil
+		return nil, fmt.Errorf("invalid intent type %s: %w,", intent, common.ErrInternalServerError)
 	}
 }
 

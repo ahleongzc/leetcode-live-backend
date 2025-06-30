@@ -124,7 +124,7 @@ func (i *InterviewHandler) readPump(
 			case <-ctx.Done():
 				return
 			default:
-				response, err := i.interviewService.ProcessInterviewMessage(ctx, interviewID, message)
+				response, err := i.interviewService.ProcessIncomingMessage(ctx, interviewID, message)
 				if err != nil {
 					select {
 					case errChan <- err:
