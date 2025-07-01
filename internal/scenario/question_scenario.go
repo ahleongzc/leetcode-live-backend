@@ -11,7 +11,7 @@ import (
 
 type QuestionScenario interface {
 	// Returns the internal question ID
-	GetOrCreateQuestion(ctx context.Context, externalID, description string) (int, error)
+	GetOrCreateQuestion(ctx context.Context, externalID, description string) (uint, error)
 }
 
 func NewQuestionScenario(
@@ -26,7 +26,7 @@ type QuestionScenarioImpl struct {
 	questionRepo repo.QuestionRepo
 }
 
-func (q *QuestionScenarioImpl) GetOrCreateQuestion(ctx context.Context, externalID string, description string) (int, error) {
+func (q *QuestionScenarioImpl) GetOrCreateQuestion(ctx context.Context, externalID string, description string) (uint, error) {
 	question, err := q.questionRepo.GetByExternalID(ctx, externalID)
 	if nil == err {
 		return question.ID, nil

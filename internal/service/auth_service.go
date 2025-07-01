@@ -15,8 +15,8 @@ import (
 
 type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
-	Logout(ctx context.Context, sessionID string) error
-	ValidateSession(ctx context.Context, sessionID string) error
+	Logout(ctx context.Context, token string) error
+	ValidateSession(ctx context.Context, token string) error
 }
 
 func NewAuthService(
@@ -38,12 +38,12 @@ type AuthServiceImpl struct {
 }
 
 // ValidateSession implements AuthService.
-func (a *AuthServiceImpl) ValidateSession(ctx context.Context, sessionID string) error {
-	return a.authScenario.ValidateSession(ctx, sessionID)
+func (a *AuthServiceImpl) ValidateSession(ctx context.Context, token string) error {
+	return a.authScenario.ValidateSession(ctx, token)
 }
 
-func (a *AuthServiceImpl) Logout(ctx context.Context, sessionID string) error {
-	err := a.sessionRepo.DeleteByID(ctx, sessionID)
+func (a *AuthServiceImpl) Logout(ctx context.Context, token string) error {
+	err := a.sessionRepo.DeleteByToken(ctx, token)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 	}
 
 	session := &entity.Session{
-		ID:                a.authScenario.GenerateRandomToken(),
+		Token:             a.authScenario.GenerateRandomToken(),
 		UserID:            user.ID,
 		ExpireTimestampMS: time.Now().Add(48 * time.Hour).UnixMilli(),
 	}
@@ -74,7 +74,7 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 		return "", err
 	}
 
-	return session.ID, nil
+	return session.Token, nil
 }
 
 func isSamePassword(hashedPassword, password string) bool {

@@ -11,12 +11,11 @@ const (
 )
 
 type Transcript struct {
-	ID                 int
-	Role               Role
-	Content            string
-	InterviewID        int
-	CreatedTimestampMS int64
-	URL                string
+	Base
+	Role        Role
+	Content     string
+	InterviewID uint
+	URL         string
 }
 
 func (t *Transcript) ToLLMMessage() *model.LLMMessage {

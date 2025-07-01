@@ -34,15 +34,19 @@ func (m *Middleware) CORS(next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if _, exists := trustedOrigins[origin]; !exists {
-			handler.HandleErrorResponseHTTP(w, common.ErrForbidden)
-			return
+
+		// TODO: Remove this, because the chrome extension's origin keeps changing currently
+		if util.IsProdEnv() {
+			if _, exists := trustedOrigins[origin]; !exists {
+				handler.HandleErrorResponseHTTP(w, common.ErrForbidden)
+				return
+			}
 		}
 
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, %s, %s, %s, %s",
 			http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions))
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Content-Length")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Content-Length, X-Session-Id")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {

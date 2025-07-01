@@ -15,9 +15,9 @@ import (
 )
 
 type InterviewService interface {
-	ProcessIncomingMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error)
+	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.InterviewMessage) (*model.InterviewMessage, error)
 	// Returns the id of the interview
-	ConsumeInterviewToken(ctx context.Context, token string) (int, error)
+	ConsumeInterviewToken(ctx context.Context, token string) (uint, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
 	SetUpInterview(ctx context.Context, sessionID, externalQuestionID, description string) (string, error)
 }
@@ -47,8 +47,8 @@ type InterviewServiceImpl struct {
 	interviewRepo     repo.InterviewRepo
 }
 
-func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionID, externalQuestionID, description string) (string, error) {
-	user, err := i.authScenario.GetUserFromSessionID(ctx, sessionID)
+func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionToken, externalQuestionID, description string) (string, error) {
+	user, err := i.authScenario.GetUserFromSessionToken(ctx, sessionToken)
 	if err != nil {
 		return "", err
 	}
@@ -75,7 +75,7 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionID, ex
 	return token, nil
 }
 
-func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, interviewID int, message *model.InterviewMessage) (*model.InterviewMessage, error) {
+func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.InterviewMessage) (*model.InterviewMessage, error) {
 	if err := i.transcriptManager.WriteCandidate(ctx, interviewID, message.Content); err != nil {
 		return nil, err
 	}
@@ -93,7 +93,7 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	return response, nil
 }
 
-func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID int, intent scenario.IntentType) (*model.InterviewMessage, error) {
+func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent scenario.IntentType) (*model.InterviewMessage, error) {
 	switch intent {
 	case scenario.NO_INTENT:
 		return i.interviewScenario.Listen(ctx, interviewID)
@@ -108,7 +108,7 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID int
 	}
 }
 
-func (i *InterviewServiceImpl) ConsumeInterviewToken(ctx context.Context, token string) (int, error) {
+func (i *InterviewServiceImpl) ConsumeInterviewToken(ctx context.Context, token string) (uint, error) {
 	interview, err := i.interviewRepo.GetByToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {

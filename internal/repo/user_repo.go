@@ -2,30 +2,33 @@ package repo
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
+
+	"gorm.io/gorm"
 )
 
 type UserRepo interface {
 	Create(ctx context.Context, user *entity.User) error
-	GetByID(ctx context.Context, id int) (*entity.User, error)
+	GetByID(ctx context.Context, id uint) (*entity.User, error)
 	GetByEmail(ctx context.Context, email string) (*entity.User, error)
 	Update(ctx context.Context, user *entity.User) error
-	Delete(ctx context.Context, id int) error
+	DeleteByID(ctx context.Context, id uint) error
 }
 
-func NewUserRepo(database *sql.DB) UserRepo {
+func NewUserRepo(
+	db *gorm.DB,
+) UserRepo {
 	return &UserRepoImpl{
-		db: database,
+		db: db,
 	}
 }
 
 type UserRepoImpl struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
 // GetByEmail implements UserRepo.
@@ -33,21 +36,9 @@ func (u *UserRepoImpl) GetByEmail(ctx context.Context, email string) (*entity.Us
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{email}
-
-	query := fmt.Sprintf(`
-		SELECT 
-			id, email, password, is_deleted, last_login_timestamp_ms 
-		FROM 
-			%s
-		WHERE 
-			email = $1
-	`, common.USER_TABLE_NAME)
-
 	user := &entity.User{}
-	err := u.db.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.Email, &user.Password, &user.IsDeleted, &user.LastLoginTimeStampMS)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	if err := u.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("user: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get user with email %s, %s: %w", email, err, common.ErrInternalServerError)
@@ -61,51 +52,41 @@ func (u *UserRepoImpl) Create(ctx context.Context, user *entity.User) error {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{user.Email, user.Password}
-
-	query := fmt.Sprintf(`
-		INSERT INTO %s
-			(email, password)
-		VALUES
-			($1, $2)
-	`, common.USER_TABLE_NAME)
-
-	_, err := u.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("unable to create new user, %s: %w", err, common.ErrInternalServerError)
+	if err := u.db.WithContext(ctx).Create(user).Error; err != nil {
+		return fmt.Errorf("unable to create new user: %w", common.ErrInternalServerError)
 	}
 
 	return nil
 }
 
 // Delete implements UserRepo.
-func (u *UserRepoImpl) Delete(ctx context.Context, id int) error {
-	panic("unimplemented")
-}
-
-// GetByID implements UserRepo.
-func (u *UserRepoImpl) GetByID(ctx context.Context, id int) (*entity.User, error) {
+func (u *UserRepoImpl) DeleteByID(ctx context.Context, id uint) error {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{id}
+	result := u.db.WithContext(ctx).Delete(&entity.User{}, id)
+	if err := result.Error; err != nil {
+		return fmt.Errorf("unable to delete user with id %d: %w", id, common.ErrInternalServerError)
+	}
 
-	query := fmt.Sprintf(`
-		SELECT 
-			id, email, password, is_deleted, last_login_timestamp_ms 
-		FROM 
-			%s
-		WHERE 
-			id = $1
-	`, common.USER_TABLE_NAME)
+	if result.RowsAffected == 0 {
+		return fmt.Errorf("user not found: %w", common.ErrNotFound)
+	}
+
+	return nil
+}
+
+// GetByID implements UserRepo.
+func (u *UserRepoImpl) GetByID(ctx context.Context, id uint) (*entity.User, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
 
 	user := &entity.User{}
-	err := u.db.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.Email, &user.Password, &user.IsDeleted, &user.LastLoginTimeStampMS)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	if err := u.db.WithContext(ctx).First(&user, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("user: %w", common.ErrNotFound)
 		}
-		return nil, fmt.Errorf("unable to get user with id %d, %s: %w", id, err.Error(), common.ErrInternalServerError)
+		return nil, fmt.Errorf("unable to get user with id %d: %w", id, common.ErrInternalServerError)
 	}
 
 	return user, nil
@@ -116,31 +97,8 @@ func (u *UserRepoImpl) Update(ctx context.Context, user *entity.User) error {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{user.Email, user.Password, user.IsDeleted, user.LastLoginTimeStampMS, user.ID}
-
-	query := fmt.Sprintf(`
-		UPDATE 
-			%s
-		SET 
-			email = $1,
-		    password = $2,
-		    is_deleted = $3,
-		    last_login_timestamp_ms = $4
-		WHERE 
-			id = $5
-	`, common.USER_TABLE_NAME)
-
-	result, err := u.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return fmt.Errorf("unable to update user, %s: %w", err, common.ErrInternalServerError)
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("unable to update user, %s: %w", err, common.ErrInternalServerError)
-	}
-	if rowsAffected == 0 {
-		return fmt.Errorf("unable to update user, affected row count is 0: %w", common.ErrInternalServerError)
+	if err := u.db.WithContext(ctx).Save(user).Error; err != nil {
+		return fmt.Errorf("unable to update user with id %d: %w", user.ID, common.ErrInternalServerError)
 	}
 
 	return nil

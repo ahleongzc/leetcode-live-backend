@@ -1,7 +1,8 @@
 package entity
 
 type Session struct {
-	ID                string
-	UserID            int
+	Base
+	Token             string `gorm:"unique"`
+	UserID            uint
 	ExpireTimestampMS int64
 }

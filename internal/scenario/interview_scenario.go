@@ -9,10 +9,10 @@ import (
 )
 
 type InterviewScenario interface {
-	Listen(ctx context.Context, interviewID int) (*model.InterviewMessage, error)
-	GiveHints(ctx context.Context, interviewID int) (*model.InterviewMessage, error)
-	Clarify(ctx context.Context, interviewID int) (*model.InterviewMessage, error)
-	EndInterview(ctx context.Context, interviewID int) (*model.InterviewMessage, error)
+	Listen(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
+	GiveHints(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
+	Clarify(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
+	EndInterview(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
 }
 
 func NewInterviewScenario(
@@ -40,12 +40,12 @@ type InterviewScenarioImpl struct {
 }
 
 // ListenToCandidate implements InterviewScenario.
-func (i *InterviewScenarioImpl) Listen(ctx context.Context, interviewID int) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) Listen(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
 	return nil, nil
 }
 
 // CandidateAsksForClarification implements InterviewScenario.
-func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID int) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
 	err := i.transcriptManager.Flush(ctx, interviewID)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID int) (*
 }
 
 // CandidateAsksForHints implements InterviewScenario.
-func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID int) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
 	err := i.transcriptManager.Flush(ctx, interviewID)
 	if err != nil {
 		return nil, err
@@ -123,7 +123,7 @@ func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID int) 
 }
 
 // CandidateWantsToEnd implements InterviewScenario.
-func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID int) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
 	err := i.transcriptManager.Flush(ctx, interviewID)
 	if err != nil {
 		return nil, err

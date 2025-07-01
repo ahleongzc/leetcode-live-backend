@@ -2,21 +2,21 @@ package repo
 
 import (
 	"context"
-	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
+
+	"gorm.io/gorm"
 )
 
 type QuestionRepo interface {
-	Create(ctx context.Context, question *entity.Question) (int, error)
+	Create(ctx context.Context, question *entity.Question) (uint, error)
 	GetByExternalID(ctx context.Context, externalID string) (*entity.Question, error)
 }
 
 func NewQuestionRepo(
-	db *sql.DB,
+	db *gorm.DB,
 ) QuestionRepo {
 	return &QuestionRepoImpl{
 		db: db,
@@ -24,33 +24,19 @@ func NewQuestionRepo(
 }
 
 type QuestionRepoImpl struct {
-	db *sql.DB
+	db *gorm.DB
 }
 
 // Create implements QuestionRepo.
-func (q *QuestionRepoImpl) Create(ctx context.Context, question *entity.Question) (int, error) {
+func (q *QuestionRepoImpl) Create(ctx context.Context, question *entity.Question) (uint, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{question.ExternalID, question.Description}
-
-	var id int
-
-	query := fmt.Sprintf(`
-		INSERT INTO %s
-			(external_id, description)
-		VALUES
-			($1, $2)
-		RETURNING
-			id
-	`, common.QUESTION_TABLE_NAME)
-
-	err := q.db.QueryRowContext(ctx, query, args...).Scan(&id)
-	if err != nil {
-		return 0, fmt.Errorf("unable to create new question, %s: %w", err, common.ErrInternalServerError)
+	if err := q.db.WithContext(ctx).Create(question).Error; err != nil {
+		return 0, fmt.Errorf("unable to create new question: %w", err)
 	}
 
-	return id, nil
+	return question.ID, nil
 }
 
 // GetByExternalID implements QuestionRepo.
@@ -58,30 +44,15 @@ func (q *QuestionRepoImpl) GetByExternalID(ctx context.Context, externalID strin
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	args := []any{externalID}
-
-	query := fmt.Sprintf(`
-		SELECT 
-			id, external_id, description
-		FROM 
-			%s
-		WHERE 
-			external_id = $1
-	`, common.QUESTION_TABLE_NAME)
-
 	question := &entity.Question{}
-	err := q.db.QueryRowContext(ctx, query, args...).
-		Scan(
-			&question.ID,
-			&question.ExternalID,
-			&question.Description,
-		)
 
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
+	if err := q.db.WithContext(ctx).
+		Where("external_id = ?", externalID).
+		First(question).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("question: %w", common.ErrNotFound)
 		}
-		return nil, fmt.Errorf("unable to get question with external_id %s, %s: %w", externalID, err.Error(), common.ErrInternalServerError)
+		return nil, fmt.Errorf("unable to get question with external_id %s: %w", externalID, err)
 	}
 
 	return question, nil

@@ -109,7 +109,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 
 func (i *InterviewHandler) readPump(
 	ctx context.Context,
-	interviewID int,
+	interviewID uint,
 	conn *websocket.Conn,
 	respondChan chan *model.InterviewMessage,
 	errChan chan error,

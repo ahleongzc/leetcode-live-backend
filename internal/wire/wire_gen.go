@@ -69,7 +69,7 @@ func InitializeApplication() (*app.Application, error) {
 	questionScenario := scenario.NewQuestionScenario(questionRepo)
 	intentClassifier := scenario.NewIntentClassifier()
 	interviewRepo := repo.NewInterviewRepo(db)
-	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, transcriptManager, intentClassifier, interviewRepo)
+	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, intentClassifier, interviewRepo)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)

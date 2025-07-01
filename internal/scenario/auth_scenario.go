@@ -15,9 +15,9 @@ import (
 )
 
 type AuthScenario interface {
-	GetUserFromSessionID(ctx context.Context, sessionID string) (*entity.User, error)
+	GetUserFromSessionToken(ctx context.Context, token string) (*entity.User, error)
 	GenerateRandomToken() string
-	ValidateSession(ctx context.Context, sessionID string) error
+	ValidateSession(ctx context.Context, token string) error
 }
 
 func NewAuthScenario(
@@ -36,12 +36,12 @@ type AuthScenarioImpl struct {
 }
 
 // ValidateSession implements AuthScenario.
-func (a *AuthScenarioImpl) ValidateSession(ctx context.Context, sessionID string) error {
-	if sessionID == "" {
+func (a *AuthScenarioImpl) ValidateSession(ctx context.Context, token string) error {
+	if token == "" {
 		return common.ErrUnauthorized
 	}
 
-	session, err := a.sessionRepo.GetByID(ctx, sessionID)
+	session, err := a.sessionRepo.GetByToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
 			return common.ErrUnauthorized
@@ -71,13 +71,13 @@ func (a *AuthScenarioImpl) GenerateRandomToken() string {
 	return base64.RawURLEncoding.EncodeToString(b)
 }
 
-func (a *AuthScenarioImpl) GetUserFromSessionID(ctx context.Context, sessionID string) (*entity.User, error) {
-	err := a.ValidateSession(ctx, sessionID)
+func (a *AuthScenarioImpl) GetUserFromSessionToken(ctx context.Context, token string) (*entity.User, error) {
+	err := a.ValidateSession(ctx, token)
 	if err != nil {
 		return nil, err
 	}
 
-	session, err := a.sessionRepo.GetByID(ctx, sessionID)
+	session, err := a.sessionRepo.GetByToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
 			return nil, common.ErrUnauthorized

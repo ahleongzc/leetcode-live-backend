@@ -1,7 +1,7 @@
 package entity
 
 type Question struct {
-	ID          int
+	Base
 	ExternalID  string
 	Description string
 }
