@@ -35,9 +35,11 @@ func (m *Middleware) CORS(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 
-		if _, exists := trustedOrigins[origin]; !exists {
-			handler.HandleErrorResponseHTTP(w, common.ErrForbidden)
-			return
+		if util.IsProdEnv() {
+			if _, exists := trustedOrigins[origin]; !exists {
+				handler.HandleErrorResponseHTTP(w, common.ErrForbidden)
+				return
+			}
 		}
 
 		w.Header().Set("Access-Control-Allow-Origin", origin)

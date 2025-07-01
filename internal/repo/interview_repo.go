@@ -14,6 +14,7 @@ type InterviewRepo interface {
 	Create(ctx context.Context, interview *entity.Interview) error
 	Update(ctx context.Context, interview *entity.Interview) error
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
+	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
 }
 
 func NewInterviewRepo(
@@ -26,6 +27,22 @@ func NewInterviewRepo(
 
 type InterviewRepoImpl struct {
 	db *gorm.DB
+}
+
+func (i *InterviewRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Interview, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	interview := &entity.Interview{}
+	if err := i.db.WithContext(ctx).
+		First(interview, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+		}
+		return nil, fmt.Errorf("unable to get interview with id %d, %s: %w", id, err.Error(), common.ErrInternalServerError)
+	}
+
+	return interview, nil
 }
 
 func (i *InterviewRepoImpl) GetByToken(ctx context.Context, token string) (*entity.Interview, error) {

@@ -41,6 +41,7 @@ func InitializeApplication() (*app.Application, error) {
 	transcriptRepo := repo.NewTranscriptRepo(db)
 	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
 	questionRepo := repo.NewQuestionRepo(db)
+	interviewRepo := repo.NewInterviewRepo(db)
 	objectStorageConfig, err := config.LoadObjectStorageConfig()
 	if err != nil {
 		return nil, err
@@ -67,11 +68,10 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	interviewScenario := scenario.NewInterviewScenario(transcriptManager, questionRepo, fileRepo, llm, tts)
+	interviewScenario := scenario.NewInterviewScenario(transcriptManager, questionRepo, interviewRepo, fileRepo, llm, tts)
 	questionScenario := scenario.NewQuestionScenario(questionRepo)
 	intentClassifier := scenario.NewIntentClassifier()
-	interviewRepo := repo.NewInterviewRepo(db)
-	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, intentClassifier, interviewRepo)
+	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, intentClassifier, interviewRepo, transcriptManager)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)

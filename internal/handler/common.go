@@ -141,15 +141,17 @@ func decodeJSON(decoder *json.Decoder, maxBytes int, dst any) error {
 }
 
 func HandleErrorResponeWebsocket(ctx context.Context, conn *websocket.Conn, err error) {
+	errorMessage := cleanErrorMessage(err)
+
 	switch {
 	case errors.Is(err, common.ErrNormalClientClosure):
 		// Ignore normal client closure
 	case errors.Is(err, common.ErrBadRequest):
-		clientBadRequestErrorWebsocketResponse(ctx, conn, err)
+		clientBadRequestErrorWebsocketResponse(ctx, conn, errors.New(errorMessage))
 	case errors.Is(err, common.ErrInternalServerError):
-		internalServerErrorWebsocketResponse(ctx, conn, err)
+		internalServerErrorWebsocketResponse(ctx, conn, errors.New(errorMessage))
 	default:
-		internalServerErrorWebsocketResponse(ctx, conn, err)
+		internalServerErrorWebsocketResponse(ctx, conn, errors.New(errorMessage))
 	}
 }
 

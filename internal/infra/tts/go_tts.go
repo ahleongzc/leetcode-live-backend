@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/go-tts/tts/pkg/speech"
@@ -25,6 +26,10 @@ func NewGoTTS(
 }
 
 func (g *GoTTS) TextToSpeechReader(ctx context.Context, text, instruction string) (io.Reader, error) {
+	// Remove unwanted special characters but keep .,!? and spaces
+	re := regexp.MustCompile(`[^a-zA-Z0-9\s.,!?]`)
+	text = re.ReplaceAllString(text, "")
+
 	// This is a limitation from the library
 	if len(text) > 200 {
 		text = text[:200]

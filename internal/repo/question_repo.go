@@ -13,6 +13,7 @@ import (
 type QuestionRepo interface {
 	Create(ctx context.Context, question *entity.Question) (uint, error)
 	GetByExternalID(ctx context.Context, externalID string) (*entity.Question, error)
+	GetByID(ctx context.Context, id uint) (*entity.Question, error)
 }
 
 func NewQuestionRepo(
@@ -53,6 +54,24 @@ func (q *QuestionRepoImpl) GetByExternalID(ctx context.Context, externalID strin
 			return nil, fmt.Errorf("question: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get question with external_id %s: %w", externalID, err)
+	}
+
+	return question, nil
+}
+
+// GetByExternalID implements QuestionRepo.
+func (q *QuestionRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Question, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	question := &entity.Question{}
+
+	if err := q.db.WithContext(ctx).
+		First(question, id).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("question: %w", common.ErrNotFound)
+		}
+		return nil, fmt.Errorf("unable to get question with id %d: %w", id, err)
 	}
 
 	return question, nil

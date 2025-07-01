@@ -39,7 +39,7 @@ func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) error {
 
 	if err := s.db.WithContext(ctx).
 		Where("expire_timestamp_ms < ? ", time.Now().UnixMilli()).
-		Delete(&entity.Transcript{}).
+		Delete(&entity.Session{}).
 		Error; err != nil {
 		return fmt.Errorf("unable to delete expired session: %w", err)
 	}

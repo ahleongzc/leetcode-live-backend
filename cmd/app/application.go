@@ -46,8 +46,8 @@ func (a *Application) Handler() http.Handler {
 	mux.HandleFunc("POST /v1/auth/status", a.authHandler.GetAuthStatus)
 	mux.HandleFunc("POST /v1/auth/logout", a.authHandler.Logout)
 
-	mux.HandleFunc("POST /v1/interview/set-up-interview", a.interviewHandler.SetUpInterview)
-	mux.HandleFunc("GET /v1/interview/join-interview", a.interviewHandler.JoinInterview)
+	mux.HandleFunc("POST /v1/interview/set-up", a.interviewHandler.SetUpInterview)
+	mux.HandleFunc("GET /v1/interview/join", a.interviewHandler.JoinInterview)
 
 	mux.HandleFunc("POST /v1/user/register", a.userHandler.Register)
 

@@ -58,6 +58,11 @@ func (t *TranscriptManagerImpl) Flush(ctx context.Context, interviewID uint) err
 		return fmt.Errorf("no buffer exists for interview id %d: %w", interviewID, common.ErrInternalServerError)
 	}
 
+	// Nothing to flush into DB
+	if len(buffer.String()) == 0 {
+		return nil
+	}
+
 	trancript := &entity.Transcript{
 		Role:        entity.USER,
 		Content:     strings.TrimSpace(buffer.String()),

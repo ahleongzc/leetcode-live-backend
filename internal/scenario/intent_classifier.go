@@ -48,7 +48,10 @@ func (i *IntentClassifierImpl) ClassifyIntent(ctx context.Context, message strin
 	clarificationRequest := map[string]struct{}{
 		"ask":           {},
 		"clarify":       {},
+		"clarifying":    {},
 		"clarification": {},
+		"question":      {},
+		"questions":     {},
 		"confirm":       {},
 	}
 

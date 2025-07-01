@@ -28,6 +28,7 @@ func NewInterviewService(
 	questionScenario scenario.QuestionScenario,
 	intentClassifier scenario.IntentClassifier,
 	interviewRepo repo.InterviewRepo,
+	transcriptManager scenario.TranscriptManager,
 ) InterviewService {
 	return &InterviewServiceImpl{
 		questionScenario:  questionScenario,
@@ -35,6 +36,7 @@ func NewInterviewService(
 		authScenario:      authScenario,
 		intentClassifier:  intentClassifier,
 		interviewRepo:     interviewRepo,
+		transcriptManager: transcriptManager,
 	}
 }
 
