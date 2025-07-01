@@ -15,6 +15,7 @@ type InterviewRepo interface {
 	Update(ctx context.Context, interview *entity.Interview) error
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
+	GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
 }
 
 func NewInterviewRepo(
@@ -27,6 +28,24 @@ func NewInterviewRepo(
 
 type InterviewRepoImpl struct {
 	db *gorm.DB
+}
+
+// GetOngoingInterviewByUserID implements InterviewRepo.
+func (i *InterviewRepoImpl) GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	interview := &entity.Interview{}
+	if err := i.db.WithContext(ctx).
+		Where("user_id = ? AND end_timestamp_ms IS NULL", userID).
+		First(interview).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+		}
+		return nil, fmt.Errorf("unable to get ongoing interview with user id %d, %s: %w", userID, err, common.ErrInternalServerError)
+	}
+
+	return interview, nil
 }
 
 func (i *InterviewRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Interview, error) {

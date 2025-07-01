@@ -60,6 +60,15 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionToken,
 		return "", err
 	}
 
+	ongoingInterview, err := i.interviewScenario.GetOngoingInterview(ctx, user.ID)
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
+		return "", err
+	}
+
+	if ongoingInterview != nil {
+		return "", fmt.Errorf("you must finish your previous interview first %w", common.ErrBadRequest)
+	}
+
 	token := i.authScenario.GenerateRandomToken()
 
 	interview := &entity.Interview{

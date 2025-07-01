@@ -3,10 +3,13 @@ package scenario
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
 	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
 type InterviewScenario interface {
@@ -15,6 +18,7 @@ type InterviewScenario interface {
 	Clarify(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
 	EndInterview(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
 	GetInterviewQuestionDescription(ctx context.Context, interviewID uint) (string, error)
+	GetOngoingInterview(ctx context.Context, userID uint) (*entity.Interview, error)
 }
 
 func NewInterviewScenario(
@@ -42,6 +46,11 @@ type InterviewScenarioImpl struct {
 	fileRepo          repo.FileRepo
 	llm               infra.LLM
 	tts               infra.TTS
+}
+
+// GetCurrentOngoingInterview implements InterviewScenario.
+func (i *InterviewScenarioImpl) GetOngoingInterview(ctx context.Context, userID uint) (*entity.Interview, error) {
+	return i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
 }
 
 func (i *InterviewScenarioImpl) GetInterviewQuestionDescription(ctx context.Context, interviewID uint) (string, error) {
@@ -218,5 +227,43 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 	if err != nil {
 		return nil, err
 	}
-	return nil, nil
+
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	interview.EndTimestampMS = util.ToPtr(time.Now().UnixMilli())
+	if err = i.interviewRepo.Update(ctx, interview); err != nil {
+		return nil, err
+	}
+
+	endingTranscript := "Hey thanks for joining this interview, I hope you had fun"
+
+	reader, err := i.tts.TextToSpeechReader(
+		ctx,
+		endingTranscript,
+		`You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+		Pause briefly between key points. 
+		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url); err != nil {
+		return nil, err
+	}
+
+	return &model.InterviewMessage{
+		Type:    model.URL,
+		Content: url,
+	}, nil
 }
