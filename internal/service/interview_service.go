@@ -66,7 +66,7 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionToken,
 	}
 
 	if ongoingInterview != nil {
-		return "", fmt.Errorf("you must finish your previous interview first %w", common.ErrBadRequest)
+		return "", fmt.Errorf("ongoing interview exists: %w", common.ErrBadRequest)
 	}
 
 	token := i.authScenario.GenerateRandomToken()

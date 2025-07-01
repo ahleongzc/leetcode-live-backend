@@ -30,7 +30,8 @@ func (i *IntentClassifierImpl) ClassifyIntent(ctx context.Context, message strin
 	words := strings.Split(message, " ")
 
 	endKeywords := map[string]struct{}{
-		"bye": {},
+		"bye":     {},
+		"bye-bye": {},
 	}
 
 	hintKeywords := map[string]struct{}{
