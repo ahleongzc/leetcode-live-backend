@@ -7,6 +7,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
+	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,7 +22,7 @@ func NewPostgresDatabase(
 	}
 
 	gormConfig := &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logger.Warn),
 	}
 
 	db, err := gorm.Open(postgres.Open(config.DSN), gormConfig)
@@ -46,5 +47,21 @@ func NewPostgresDatabase(
 		return nil, err
 	}
 
+	err = migrateEntities(db)
+	if err != nil {
+		return nil, err
+	}
+
 	return db, nil
+}
+
+func migrateEntities(db *gorm.DB) error {
+	err := db.AutoMigrate(
+		&entity.Interview{},
+		&entity.Question{},
+		&entity.Session{},
+		&entity.Transcript{},
+		&entity.User{},
+	)
+	return err
 }

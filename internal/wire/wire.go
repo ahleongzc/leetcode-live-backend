@@ -23,8 +23,10 @@ func InitializeApplication() (*app.Application, error) {
 		handler.NewAuthHandler,
 		handler.NewHealthHandler,
 		handler.NewInterviewHandler,
+		handler.NewUserHandler,
 
 		// Service
+		service.NewUserService,
 		service.NewAuthService,
 		service.NewInterviewService,
 

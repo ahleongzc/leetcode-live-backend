@@ -4,7 +4,7 @@ import "gorm.io/plugin/soft_delete"
 
 type User struct {
 	Base
-	Email                string
+	Email                string `gorm:"index;unique"`
 	Password             string
 	LoginCount           int
 	LastLoginTimeStampMS *int64

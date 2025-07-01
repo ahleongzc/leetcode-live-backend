@@ -34,6 +34,8 @@ func InitializeApplication() (*app.Application, error) {
 	authScenario := scenario.NewAuthScenario(userRepo, sessionRepo)
 	authService := service.NewAuthService(authScenario, sessionRepo, userRepo)
 	authHandler := handler.NewAuthHandler(authService)
+	userService := service.NewUserService(userRepo)
+	userHandler := handler.NewUserHandler(userService)
 	healthHandler := handler.NewHealthHandler()
 	websocketConfig := config.LoadWebsocketConfig()
 	transcriptRepo := repo.NewTranscriptRepo(db)
@@ -74,6 +76,6 @@ func InitializeApplication() (*app.Application, error) {
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
-	application := app.NewApplication(authHandler, healthHandler, interviewHandler, middlewareMiddleware, houseKeeper)
+	application := app.NewApplication(authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, houseKeeper)
 	return application, nil
 }

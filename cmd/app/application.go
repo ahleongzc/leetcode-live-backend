@@ -12,6 +12,7 @@ import (
 
 type Application struct {
 	authHandler      *handler.AuthHandler
+	userHandler      *handler.UserHandler
 	healthHandler    *handler.HealthHandler
 	interviewHandler *handler.InterviewHandler
 	middleware       *middleware.Middleware
@@ -20,6 +21,7 @@ type Application struct {
 
 func NewApplication(
 	authHandler *handler.AuthHandler,
+	userHandler *handler.UserHandler,
 	healthHandler *handler.HealthHandler,
 	interviewHandler *handler.InterviewHandler,
 	middleware *middleware.Middleware,
@@ -27,6 +29,7 @@ func NewApplication(
 ) *Application {
 	return &Application{
 		authHandler:      authHandler,
+		userHandler:      userHandler,
 		healthHandler:    healthHandler,
 		interviewHandler: interviewHandler,
 		middleware:       middleware,
@@ -45,6 +48,8 @@ func (a *Application) Handler() http.Handler {
 
 	mux.HandleFunc("POST /v1/interview/set-up-interview", a.interviewHandler.SetUpInterview)
 	mux.HandleFunc("GET /v1/interview/join-interview", a.interviewHandler.JoinInterview)
+
+	mux.HandleFunc("POST /v1/user/register", a.userHandler.Register)
 
 	return alice.New(
 		a.middleware.RecoverPanic,

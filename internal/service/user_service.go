@@ -17,7 +17,9 @@ type UserService interface {
 	RegisterNewUser(ctx context.Context, email, password string) error
 }
 
-func NewUserService(userRepo repo.UserRepo) UserService {
+func NewUserService(
+	userRepo repo.UserRepo,
+) UserService {
 	return &UserServiceImpl{
 		userRepo: userRepo,
 	}

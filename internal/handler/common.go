@@ -154,20 +154,31 @@ func HandleErrorResponeWebsocket(ctx context.Context, conn *websocket.Conn, err 
 }
 
 func HandleErrorResponseHTTP(w http.ResponseWriter, err error) {
+	errorMessage := cleanErrorMessage(err)
+
 	switch {
 	case errors.Is(err, common.ErrBadRequest):
-		clientBadRequestErrorHTTPResponse(w, err)
+		clientBadRequestErrorHTTPResponse(w, errors.New(errorMessage))
 	case errors.Is(err, common.ErrUnauthorized):
 		clientUnauthorizedHTTPResponse(w)
 	case errors.Is(err, common.ErrForbidden):
 		clientForbiddenHTTPResponse(w)
 	case errors.Is(err, common.ErrNotFound):
-		dataNotFoundErrorHTTPResponse(w, err)
+		dataNotFoundErrorHTTPResponse(w, errors.New(errorMessage))
 	case errors.Is(err, common.ErrInternalServerError):
-		internalServerErrorHTTPResponse(w, err)
+		internalServerErrorHTTPResponse(w, errors.New(errorMessage))
 	default:
-		internalServerErrorHTTPResponse(w, err)
+		internalServerErrorHTTPResponse(w, errors.New(errorMessage))
 	}
+}
+
+func cleanErrorMessage(err error) string {
+	errorMessage := err.Error()
+	if idx := strings.LastIndex(errorMessage, ":"); idx != -1 {
+		errorMessage = errorMessage[:idx]
+	}
+
+	return strings.TrimSpace(errorMessage)
 }
 
 func clientBadRequestErrorWebsocketResponse(ctx context.Context, conn *websocket.Conn, err error) {
