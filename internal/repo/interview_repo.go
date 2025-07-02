@@ -11,7 +11,7 @@ import (
 )
 
 type InterviewRepo interface {
-	Create(ctx context.Context, interview *entity.Interview) error
+	Create(ctx context.Context, interview *entity.Interview) (uint, error)
 	Update(ctx context.Context, interview *entity.Interview) error
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
@@ -82,15 +82,15 @@ func (i *InterviewRepoImpl) GetByToken(ctx context.Context, token string) (*enti
 }
 
 // Create implements InterviewRepo.
-func (i *InterviewRepoImpl) Create(ctx context.Context, interview *entity.Interview) error {
+func (i *InterviewRepoImpl) Create(ctx context.Context, interview *entity.Interview) (uint, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := i.db.WithContext(ctx).Create(interview).Error; err != nil {
-		return fmt.Errorf("unable to create new interview: %w", common.ErrInternalServerError)
+		return 0, fmt.Errorf("unable to create new interview: %w", common.ErrInternalServerError)
 	}
 
-	return nil
+	return interview.ID, nil
 }
 
 // Update implements InterviewRepo.

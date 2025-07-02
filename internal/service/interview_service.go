@@ -78,9 +78,13 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionToken,
 		Token:            util.ToPtr(token),
 	}
 
-	err = i.interviewRepo.Create(ctx, interview)
+	id, err := i.interviewRepo.Create(ctx, interview)
 	if err != nil {
 		return "", err
+	}
+
+	if err := i.interviewScenario.PrepareToListen(ctx, id); err != nil {
+		return "", nil
 	}
 
 	return token, nil
@@ -104,18 +108,22 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	return response, nil
 }
 
-func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent scenario.IntentType) (*model.InterviewMessage, error) {
-	switch intent {
-	case scenario.NO_INTENT:
+func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *entity.Intent) (*model.InterviewMessage, error) {
+	if intent == nil {
+		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
+	}
+
+	switch util.FromPtr(intent) {
+	case entity.NO_INTENT:
 		return i.interviewScenario.Listen(ctx, interviewID)
-	case scenario.HINT_REQUEST:
+	case entity.HINT_REQUEST:
 		return i.interviewScenario.GiveHints(ctx, interviewID)
-	case scenario.CLARIFICATION_REQUEST:
+	case entity.CLARIFICATION_REQUEST:
 		return i.interviewScenario.Clarify(ctx, interviewID)
-	case scenario.END_REQUEST:
+	case entity.END_REQUEST:
 		return i.interviewScenario.EndInterview(ctx, interviewID)
 	default:
-		return nil, fmt.Errorf("invalid intent type %s: %w,", intent, common.ErrInternalServerError)
+		return nil, fmt.Errorf("invalid intent type %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
 	}
 }
 

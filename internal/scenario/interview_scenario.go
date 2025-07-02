@@ -13,11 +13,11 @@ import (
 )
 
 type InterviewScenario interface {
+	PrepareToListen(ctx context.Context, interviewID uint) error
 	Listen(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
 	GiveHints(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
 	Clarify(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
 	EndInterview(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
-	GetInterviewQuestionDescription(ctx context.Context, interviewID uint) (string, error)
 	GetOngoingInterview(ctx context.Context, userID uint) (*entity.Interview, error)
 }
 
@@ -48,12 +48,32 @@ type InterviewScenarioImpl struct {
 	tts               infra.TTS
 }
 
+// LoadQuestion implements InterviewScenario.
+func (i *InterviewScenarioImpl) PrepareToListen(ctx context.Context, interviewID uint) error {
+	description, err := i.getInterviewQuestionDescription(ctx, interviewID)
+	if err != nil {
+		return err
+	}
+
+	initialTranscript := fmt.Sprintf(`
+		You are a senior software engineer conducting a LeetCode-style technical interview with a candidate.
+		You have already prepared the question for the candidate, and the description of the question is as follow:
+		%s
+	`, description)
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, initialTranscript, "", ""); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // GetCurrentOngoingInterview implements InterviewScenario.
 func (i *InterviewScenarioImpl) GetOngoingInterview(ctx context.Context, userID uint) (*entity.Interview, error) {
 	return i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
 }
 
-func (i *InterviewScenarioImpl) GetInterviewQuestionDescription(ctx context.Context, interviewID uint) (string, error) {
+func (i *InterviewScenarioImpl) getInterviewQuestionDescription(ctx context.Context, interviewID uint) (string, error) {
 	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
 	if err != nil {
 		return "", err
@@ -79,35 +99,27 @@ func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (
 		return nil, err
 	}
 
+	llmMessages := make([]*model.LLMMessage, 0)
 	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
 	if err != nil {
 		return nil, err
 	}
 
-	description, err := i.GetInterviewQuestionDescription(ctx, interviewID)
-	if err != nil {
-		return nil, err
+	for _, transcript := range history {
+		llmMessages = append(llmMessages, transcript.ToLLMMessage())
 	}
 
-	llmMessages := make([]*model.LLMMessage, len(history)+1)
 	llmMessages = append(llmMessages, &model.LLMMessage{
 		Role: model.SYSTEM,
-		Content: fmt.Sprintf(`
-			You are a senior software engineer conducting a LeetCode-style technical interview.
-			Your task is to answer clarifying questions from the candidate in a way that helps them better understand the problem without giving away the solution.
+		Content: `
+			You are now tasked to answer clarifying questions from the candidate in a way that helps them better understand the problem without giving away the solution.
 			Be clear, concise, and professional — just like you would be in a real interview.
 			Provide only as much information as needed to address their question directly.
 			Avoid adding extra hints or restating parts of the problem unless it's necessary for clarification.
 			If the candidate asks about constraints, edge cases, or assumptions, answer truthfully and succinctly.
 			Keep your tone supportive but neutral — you're here to evaluate and guide, not to teach.
-
-			The description of the question is as follows: %s`, description,
-		),
+		`,
 	})
-
-	for _, transcript := range history {
-		llmMessages = append(llmMessages, transcript.ToLLMMessage())
-	}
 
 	req := &model.ChatCompletionsRequest{
 		Messages: llmMessages,
@@ -121,12 +133,12 @@ func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (
 	replyToCandidate := resp.GetResponse().GetContent()
 
 	reader, err := i.tts.TextToSpeechReader(
-		ctx,
-		replyToCandidate,
-		`You are a senior software engineer conducting a LeetCode-style technical interview. 
-		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
-		Pause briefly between key points. 
-		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
+		ctx, replyToCandidate, `
+			You are a senior software engineer conducting a LeetCode-style technical interview. 
+			Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+			Pause briefly between key points. 
+			Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.
+		`,
 	)
 	if err != nil {
 		return nil, err
@@ -138,7 +150,7 @@ func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (
 		return nil, err
 	}
 
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url); err != nil {
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url, entity.ASSISTANT); err != nil {
 		return nil, err
 	}
 
@@ -155,27 +167,22 @@ func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID uint)
 		return nil, err
 	}
 
+	llmMessages := make([]*model.LLMMessage, 0)
 	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
 	if err != nil {
 		return nil, err
 	}
 
-	description, err := i.GetInterviewQuestionDescription(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
-	llmMessages := make([]*model.LLMMessage, len(history)+1)
 	llmMessages = append(llmMessages, &model.LLMMessage{
 		Role: model.SYSTEM,
-		Content: fmt.Sprintf(`
-		You are a senior software engineer conducting a LeetCode-style technical interview. 
-		Your task is to provide concise, high-quality hints to help the candidate move forward based on the question they're currently solving and the history of their previous questions or messages. 
-		Do not give the full solution. 
-		Tailor your hints to their level of understanding and avoid repeating information they've already figured out. 
-		If the candidate appears confused or stuck, offer a nudge in the right direction without revealing the answer.
-		Keep your hints short and simple, and reply like how you would in a real life interview.
-		The description of the question is as follow: %s`, description),
+		Content: `
+			You are a senior software engineer conducting a LeetCode-style technical interview. 
+			Your task is to provide concise, high-quality hints to help the candidate move forward based on the question they're currently solving and the history of their previous questions or messages. 
+			Do not give the full solution. 
+			Tailor your hints to their level of understanding and avoid repeating information they've already figured out. 
+			If the candidate appears confused or stuck, offer a nudge in the right direction without revealing the answer.
+			Keep your hints short and simple, and reply like how you would in a real life interview.
+		`,
 	})
 
 	for _, transcript := range history {
@@ -211,7 +218,7 @@ func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID uint)
 		return nil, err
 	}
 
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url); err != nil {
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url, entity.ASSISTANT); err != nil {
 		return nil, err
 	}
 
@@ -243,7 +250,8 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 	reader, err := i.tts.TextToSpeechReader(
 		ctx,
 		endingTranscript,
-		`You are a senior software engineer conducting a LeetCode-style technical interview. 
+		`
+		You are a senior software engineer conducting a LeetCode-style technical interview. 
 		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
 		Pause briefly between key points. 
 		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
@@ -258,7 +266,7 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 		return nil, err
 	}
 
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url); err != nil {
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url, entity.ASSISTANT); err != nil {
 		return nil, err
 	}
 

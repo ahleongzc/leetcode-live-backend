@@ -20,6 +20,7 @@ const (
 	WRITE_TIMEOUT_SEC_KEY string        = "WRITE_TIMEOUT"
 	HOUSEKEEPING_INTERVAL time.Duration = 5 * time.Minute
 	WRITE_TO_FILE_TIMEOUT time.Duration = 5 * time.Second
+	IN_MEMORY_QUEUE_SIZE  uint          = 100
 
 	// Database
 	DB_DSN_KEY               string        = "DB_DSN"
@@ -72,13 +73,6 @@ const (
 )
 
 var (
-	DEV_TRUSTED_ORIGINS = map[string]struct{}{
-		"localhost":            {},
-		"0.0.0.0":              {},
-		"https://leetcode.com": {},
-		"":                     {},
-	}
-
 	PROD_TRUSTED_ORIGINS = map[string]struct{}{
 		"https://leetcode.com": {},
 	}

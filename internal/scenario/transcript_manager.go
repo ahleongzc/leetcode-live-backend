@@ -13,7 +13,7 @@ import (
 type TranscriptManager interface {
 	Flush(ctx context.Context, interviewID uint) error
 	WriteCandidate(ctx context.Context, interviewID uint, transcript string) error
-	WriteInterviewer(ctx context.Context, interviewID uint, transcript, url string) error
+	WriteInterviewer(ctx context.Context, interviewID uint, transcript, url string, role entity.Role) error
 	GetTranscriptHistory(ctx context.Context, interviewID uint) ([]*entity.Transcript, error)
 }
 
@@ -35,10 +35,10 @@ func (t *TranscriptManagerImpl) GetTranscriptHistory(ctx context.Context, interv
 	return t.transcriptRepo.ListByInterviewIDAsc(ctx, interviewID)
 }
 
-func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewID uint, transcript, url string) error {
+func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewID uint, transcript, url string, role entity.Role) error {
 	trancript := &entity.Transcript{
-		Role:        entity.ASSISTANT,
-		Content:     strings.TrimSpace(transcript),
+		Role:        role,
+		Content:     fmt.Sprintf("Interviewer: %s", strings.TrimSpace(transcript)),
 		InterviewID: interviewID,
 		URL:         url,
 	}
@@ -65,7 +65,7 @@ func (t *TranscriptManagerImpl) Flush(ctx context.Context, interviewID uint) err
 
 	trancript := &entity.Transcript{
 		Role:        entity.USER,
-		Content:     strings.TrimSpace(buffer.String()),
+		Content:     fmt.Sprintf("Candidate: %s", strings.TrimSpace(buffer.String())),
 		InterviewID: interviewID,
 	}
 

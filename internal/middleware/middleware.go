@@ -24,14 +24,6 @@ func NewMiddleware(logger *zerolog.Logger) *Middleware {
 func (m *Middleware) CORS(next http.Handler) http.Handler {
 	var trustedOrigins map[string]struct{}
 
-	if util.IsDevEnv() {
-		trustedOrigins = common.DEV_TRUSTED_ORIGINS
-	}
-
-	if util.IsProdEnv() {
-		trustedOrigins = common.PROD_TRUSTED_ORIGINS
-	}
-
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
 

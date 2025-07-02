@@ -3,19 +3,13 @@ package scenario
 import (
 	"context"
 	"strings"
-)
 
-type IntentType string
-
-const (
-	NO_INTENT             IntentType = "nil"
-	HINT_REQUEST          IntentType = "hint_request"
-	CLARIFICATION_REQUEST IntentType = "clarification_request"
-	END_REQUEST           IntentType = "end_request"
+	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
 type IntentClassifier interface {
-	ClassifyIntent(ctx context.Context, message string) (IntentType, error)
+	ClassifyIntent(ctx context.Context, message string) (*entity.Intent, error)
 }
 
 func NewIntentClassifier() IntentClassifier {
@@ -25,7 +19,7 @@ func NewIntentClassifier() IntentClassifier {
 type IntentClassifierImpl struct{}
 
 // TODO: Make an actual intent classifier
-func (i *IntentClassifierImpl) ClassifyIntent(ctx context.Context, message string) (IntentType, error) {
+func (i *IntentClassifierImpl) ClassifyIntent(ctx context.Context, message string) (*entity.Intent, error) {
 	message = strings.ToLower(message)
 	words := strings.Split(message, " ")
 
@@ -51,8 +45,6 @@ func (i *IntentClassifierImpl) ClassifyIntent(ctx context.Context, message strin
 		"clarify":       {},
 		"clarifying":    {},
 		"clarification": {},
-		"question":      {},
-		"questions":     {},
 		"confirm":       {},
 	}
 
@@ -60,17 +52,17 @@ func (i *IntentClassifierImpl) ClassifyIntent(ctx context.Context, message strin
 	// TODO: Return the one with higher confidence in the future
 	for _, word := range words {
 		if _, ok := endKeywords[word]; ok {
-			return END_REQUEST, nil
+			return util.ToPtr(entity.END_REQUEST), nil
 		}
 
 		if _, ok := hintKeywords[word]; ok {
-			return HINT_REQUEST, nil
+			return util.ToPtr(entity.HINT_REQUEST), nil
 		}
 
 		if _, ok := clarificationRequest[word]; ok {
-			return CLARIFICATION_REQUEST, nil
+			return util.ToPtr(entity.CLARIFICATION_REQUEST), nil
 		}
 	}
 
-	return NO_INTENT, nil
+	return util.ToPtr(entity.NO_INTENT), nil
 }

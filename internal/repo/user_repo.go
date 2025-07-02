@@ -82,7 +82,7 @@ func (u *UserRepoImpl) GetByID(ctx context.Context, id uint) (*entity.User, erro
 	defer cancel()
 
 	user := &entity.User{}
-	if err := u.db.WithContext(ctx).First(&user, id).Error; err != nil {
+	if err := u.db.WithContext(ctx).First(user, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("user: %w", common.ErrNotFound)
 		}

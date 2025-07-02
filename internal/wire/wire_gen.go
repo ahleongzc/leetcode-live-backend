@@ -36,35 +36,37 @@ func InitializeApplication() (*app.Application, error) {
 	authHandler := handler.NewAuthHandler(authService)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
-	healthHandler := handler.NewHealthHandler()
-	websocketConfig := config.LoadWebsocketConfig()
+	reviewRepo := repo.NewReviewRepo(db)
+	interviewRepo := repo.NewInterviewRepo(db)
 	transcriptRepo := repo.NewTranscriptRepo(db)
 	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
-	questionRepo := repo.NewQuestionRepo(db)
-	interviewRepo := repo.NewInterviewRepo(db)
-	objectStorageConfig, err := config.LoadObjectStorageConfig()
-	if err != nil {
-		return nil, err
-	}
-	client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
-	if err != nil {
-		return nil, err
-	}
-	fileRepo := repo.NewFileRepo(client, objectStorageConfig)
 	llmConfig, err := config.LoadLLMConfig()
 	if err != nil {
 		return nil, err
 	}
-	httpClient := infra.NewHTTPCLient()
-	llm, err := infra.NewLLM(llmConfig, httpClient)
+	client := infra.NewHTTPCLient()
+	llm, err := infra.NewLLM(llmConfig, client)
 	if err != nil {
 		return nil, err
 	}
+	reviewScenario := scenario.NewReviewScenario(reviewRepo, interviewRepo, transcriptManager, llm)
+	healthHandler := handler.NewHealthHandler(reviewScenario)
+	websocketConfig := config.LoadWebsocketConfig()
+	questionRepo := repo.NewQuestionRepo(db)
+	objectStorageConfig, err := config.LoadObjectStorageConfig()
+	if err != nil {
+		return nil, err
+	}
+	s3Client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
+	if err != nil {
+		return nil, err
+	}
+	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
 	ttsConfig, err := config.LoadTTSConfig()
 	if err != nil {
 		return nil, err
 	}
-	tts, err := infra.NewTTS(ttsConfig, httpClient)
+	tts, err := infra.NewTTS(ttsConfig, client)
 	if err != nil {
 		return nil, err
 	}

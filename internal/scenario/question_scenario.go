@@ -36,6 +36,8 @@ func (q *QuestionScenarioImpl) GetOrCreateQuestion(ctx context.Context, external
 		return 0, err
 	}
 
+
+
 	newQuestion := &entity.Question{
 		ExternalID:  externalID,
 		Description: description,

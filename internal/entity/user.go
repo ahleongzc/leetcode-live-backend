@@ -6,7 +6,7 @@ type User struct {
 	Base
 	Email                string `gorm:"index;unique"`
 	Password             string
-	LoginCount           int
+	LoginCount           uint
 	LastLoginTimeStampMS *int64
 	DeletedTimestampMS   soft_delete.DeletedAt `gorm:"softDelete:milli"`
 }
