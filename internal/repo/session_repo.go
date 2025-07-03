@@ -17,7 +17,7 @@ type SessionRepo interface {
 	Update(ctx context.Context, session *entity.Session) error
 	GetByToken(ctx context.Context, token string) (*entity.Session, error)
 	DeleteByToken(ctx context.Context, token string) error
-	DeleteExpired(ctx context.Context) error
+	DeleteExpired(ctx context.Context) (uint, error)
 }
 
 func NewSessionRepo(
@@ -33,18 +33,19 @@ type SessionRepoImpl struct {
 }
 
 // DeleteExpired implements SessionRepo.
-func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) error {
+func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) (uint, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
-	if err := s.db.WithContext(ctx).
+	result := s.db.WithContext(ctx).
 		Where("expire_timestamp_ms < ? ", time.Now().UnixMilli()).
-		Delete(&entity.Session{}).
-		Error; err != nil {
-		return fmt.Errorf("unable to delete expired session: %w", err)
+		Delete(&entity.Session{})
+
+	if err := result.Error; err != nil {
+		return 0, fmt.Errorf("unable to delete expired session: %w", err)
 	}
 
-	return nil
+	return uint(result.RowsAffected), nil
 }
 
 // Update implements SessionRepo.

@@ -36,7 +36,6 @@ func (w *WorkerPoolImpl) Init(size uint) {
 func (w *WorkerPoolImpl) Start(ctx context.Context) {
 	for workerID := range w.size {
 		go func() {
-			w.logger.Info().Uint("workerID", workerID).Msg("worker has started")
 			for {
 				select {
 				case <-ctx.Done():
@@ -72,4 +71,6 @@ func (w *WorkerPoolImpl) processCallback(workerID uint) {
 			Err(err).
 			Msg("callback error")
 	}
+
+	w.logger.Info().Uint("workerID", workerID).Msg("worker has finished executing callback function")
 }

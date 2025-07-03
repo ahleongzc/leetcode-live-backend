@@ -2,7 +2,6 @@ package background
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
@@ -32,16 +31,14 @@ func NewHouseKeeper(
 func (h *HousekeeperImpl) Housekeep(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
 	go func() {
+		defer ticker.Stop()
 		for {
 			select {
-			case t := <-ticker.C:
-				h.logger.Info().Msg(
-					fmt.Sprintf("housekeeping at %s", t.Format("2006-01-02 15:04:05")),
-				)
+			case <-ticker.C:
+				ctx := context.Background()
 				h.deleteExpiredSession(ctx)
 			case <-ctx.Done():
 				h.logger.Log().Msg("gracefully terminating housekeeping")
-				ticker.Stop()
 				return
 			}
 		}
@@ -49,8 +46,23 @@ func (h *HousekeeperImpl) Housekeep(ctx context.Context, interval time.Duration)
 }
 
 func (h *HousekeeperImpl) deleteExpiredSession(ctx context.Context) {
-	err := h.sessionRepo.DeleteExpired(ctx)
+	start := time.Now()
+	deletedCount, err := h.sessionRepo.DeleteExpired(ctx)
+	duration := time.Since(start)
 	if err != nil {
-		h.logger.Log().Err(err)
+		h.logger.Error().
+			Err(err).
+			Dur("duration", duration).
+			Msg("failed to delete expired sessions")
+		return
 	}
+
+	if deletedCount == 0 {
+		return
+	}
+
+	h.logger.Info().
+		Int("sessionDeleted", int(deletedCount)).
+		Dur("duration", duration).
+		Msg("deleted expired session successfully")
 }

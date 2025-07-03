@@ -18,10 +18,10 @@ const (
 	IDLE_TIMEOUT_SEC_KEY  string        = "IDLE_TIMEOUT"
 	READ_TIMEOUT_SEC_KEY  string        = "READ_TIMEOUT"
 	WRITE_TIMEOUT_SEC_KEY string        = "WRITE_TIMEOUT"
-	HOUSEKEEPING_INTERVAL time.Duration = 5 * time.Minute
+	HOUSEKEEPING_INTERVAL time.Duration = 5 * time.Second
 	WRITE_TO_FILE_TIMEOUT time.Duration = 5 * time.Second
 	IN_MEMORY_QUEUE_SIZE  uint          = 100
-	WORKER_POOL_SIZE      uint          = 5
+	WORKER_POOL_SIZE      uint          = 20
 
 	// Database
 	DB_DSN_KEY               string        = "DB_DSN"
