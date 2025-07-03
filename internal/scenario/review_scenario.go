@@ -63,11 +63,6 @@ func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, int
 		`,
 	})
 
-	for _, msg := range llmMessages {
-		fmt.Println(msg.Role)
-		fmt.Println(msg.Content)
-	}
-
 	req := &model.ChatCompletionsRequest{
 		Messages: llmMessages,
 	}

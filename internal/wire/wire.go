@@ -53,6 +53,7 @@ func InitializeApplication() (*app.Application, error) {
 		infra.NewPostgresDatabase,
 		infra.NewZerologLogger,
 		infra.NewCloudflareR2ObjectStorageClient,
+		infra.NewInMemoryCallbackQueue,
 		infra.NewHTTPCLient,
 
 		// Config
@@ -61,12 +62,14 @@ func InitializeApplication() (*app.Application, error) {
 		config.LoadObjectStorageConfig,
 		config.LoadTTSConfig,
 		config.LoadWebsocketConfig,
+		config.LoadInMemoryQueueConfig,
 
 		// Middleware
 		middleware.NewMiddleware,
 
 		// Housekeeping
 		background.NewHouseKeeper,
+		background.NewWorkerPool,
 
 		// Application
 		app.NewApplication,

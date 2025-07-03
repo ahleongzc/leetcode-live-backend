@@ -1,43 +1,75 @@
 package background
 
 import (
-	"sync"
+	"context"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+
 	"github.com/rs/zerolog"
 )
 
 type WorkerPool interface {
 	Init(size uint)
-	Start()
+	Start(ctx context.Context)
 }
 
-func NewReviewWorkerPool(
-	queue infra.InMemoryQueue,
+func NewWorkerPool(
+	callbackQueue infra.InMemoryCallbackQueue,
 	logger *zerolog.Logger,
 ) WorkerPool {
-	return &ReviewWorkerPool{
-		queue:  queue,
-		logger: logger,
+	return &WorkerPoolImpl{
+		callbackQueue: callbackQueue,
+		logger:        logger,
 	}
 }
 
-type ReviewWorkerPool struct {
-	queue  infra.InMemoryQueue
-	size   uint
-	logger *zerolog.Logger
+type WorkerPoolImpl struct {
+	callbackQueue infra.InMemoryCallbackQueue
+	size          uint
+	logger        *zerolog.Logger
 }
 
-func (r *ReviewWorkerPool) Init(size uint) {
-	r.size = size
+func (w *WorkerPoolImpl) Init(size uint) {
+	w.size = size
 }
 
-func (r *ReviewWorkerPool) Start() {
-	var wg sync.WaitGroup
-	for range r.size {
-		wg.Add(1)
+func (w *WorkerPoolImpl) Start(ctx context.Context) {
+	for workerID := range w.size {
 		go func() {
-
+			w.logger.Info().Uint("workerID", workerID).Msg("worker has started")
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					w.processCallback(workerID)
+				}
+			}
 		}()
+	}
+}
+
+func (w *WorkerPoolImpl) processCallback(workerID uint) {
+	defer func() {
+		if err := recover(); err != nil {
+			w.logger.Error().
+				Interface("panic", err).
+				Uint("workerID", workerID).
+				Stack().
+				Msg("worker recovered from panic")
+		}
+	}()
+
+	fn := w.callbackQueue.Dequeue()
+	if fn == nil {
+		return
+	}
+
+	if err := fn(); err != nil {
+		w.logger.
+			Error().
+			Uint("workerID", workerID).
+			Err(err).
+			Msg("callback error")
 	}
 }

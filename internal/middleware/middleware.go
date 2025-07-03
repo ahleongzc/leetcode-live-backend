@@ -74,7 +74,7 @@ func (m *Middleware) RecoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				m.logger.Panic().Msg("")
+				m.logger.Error().Msg("")
 				handler.HandleErrorResponseHTTP(w, fmt.Errorf("%w", common.ErrInternalServerError))
 			}
 		}()

@@ -4,36 +4,41 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 )
 
-type InMemoryQueue interface {
-	Enqueue(message any)
-	Dequeue() any
+type InMemoryCallbackQueue interface {
+	Enqueue(callback func() error)
+	Dequeue() func() error
+	Size() uint
 }
 
 // The channel has a default size of 100
-func NewInMemoryQueue(
+func NewInMemoryCallbackQueue(
 	config *config.InMemoryQueueConfig,
-) InMemoryQueue {
-	queueLength := 100
+) InMemoryCallbackQueue {
+	queueLength := uint(100)
 
-	if config.Size != 0 {
-		config.Size = uint(queueLength)
+	if config != nil && config.Size != 0 {
+		queueLength = config.Size
 	}
 
-	return &InMemoryQueueImpl{
-		queue: make(chan any, queueLength),
+	return &InMemoryCallbackQueueImpl{
+		queue: make(chan func() error, queueLength),
 	}
 }
 
-type InMemoryQueueImpl struct {
-	queue chan (any)
+type InMemoryCallbackQueueImpl struct {
+	queue chan (func() error)
 }
 
-func (i *InMemoryQueueImpl) Enqueue(message any) {
+func (i *InMemoryCallbackQueueImpl) Enqueue(callback func() error) {
 	go func() {
-		i.queue <- message
+		i.queue <- callback
 	}()
 }
 
-func (i *InMemoryQueueImpl) Dequeue() any {
+func (i *InMemoryCallbackQueueImpl) Dequeue() func() error {
 	return <-i.queue
+}
+
+func (i *InMemoryCallbackQueueImpl) Size() uint {
+	return uint(len(i.queue))
 }

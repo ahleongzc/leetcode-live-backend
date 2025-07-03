@@ -22,30 +22,36 @@ type InterviewScenario interface {
 }
 
 func NewInterviewScenario(
+	reviewScenario ReviewScenario,
 	transcriptManager TranscriptManager,
 	questionRepo repo.QuestionRepo,
 	interviewRepo repo.InterviewRepo,
 	fileRepo repo.FileRepo,
 	llm infra.LLM,
 	tts infra.TTS,
+	inMemoryCallbackQueue infra.InMemoryCallbackQueue,
 ) InterviewScenario {
 	return &InterviewScenarioImpl{
-		transcriptManager: transcriptManager,
-		questionRepo:      questionRepo,
-		interviewRepo:     interviewRepo,
-		fileRepo:          fileRepo,
-		llm:               llm,
-		tts:               tts,
+		reviewScenario:        reviewScenario,
+		transcriptManager:     transcriptManager,
+		questionRepo:          questionRepo,
+		interviewRepo:         interviewRepo,
+		fileRepo:              fileRepo,
+		llm:                   llm,
+		tts:                   tts,
+		inMemoryCallbackQueue: inMemoryCallbackQueue,
 	}
 }
 
 type InterviewScenarioImpl struct {
-	transcriptManager TranscriptManager
-	interviewRepo     repo.InterviewRepo
-	questionRepo      repo.QuestionRepo
-	fileRepo          repo.FileRepo
-	llm               infra.LLM
-	tts               infra.TTS
+	reviewScenario        ReviewScenario
+	transcriptManager     TranscriptManager
+	interviewRepo         repo.InterviewRepo
+	questionRepo          repo.QuestionRepo
+	fileRepo              repo.FileRepo
+	llm                   infra.LLM
+	tts                   infra.TTS
+	inMemoryCallbackQueue infra.InMemoryCallbackQueue
 }
 
 // LoadQuestion implements InterviewScenario.
@@ -246,7 +252,6 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 	}
 
 	endingTranscript := "Hey thanks for joining this interview, I hope you had fun"
-
 	reader, err := i.tts.TextToSpeechReader(
 		ctx,
 		endingTranscript,
@@ -259,6 +264,13 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 	if err != nil {
 		return nil, err
 	}
+
+	i.inMemoryCallbackQueue.Enqueue(
+		func() error {
+			ctx := context.Background()
+			return i.reviewScenario.ReviewInterviewPerformance(ctx, interviewID)
+		},
+	)
 
 	// TODO: Make the file name follow a structure
 	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)

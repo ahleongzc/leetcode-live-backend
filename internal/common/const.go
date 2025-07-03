@@ -21,6 +21,7 @@ const (
 	HOUSEKEEPING_INTERVAL time.Duration = 5 * time.Minute
 	WRITE_TO_FILE_TIMEOUT time.Duration = 5 * time.Second
 	IN_MEMORY_QUEUE_SIZE  uint          = 100
+	WORKER_POOL_SIZE      uint          = 5
 
 	// Database
 	DB_DSN_KEY               string        = "DB_DSN"

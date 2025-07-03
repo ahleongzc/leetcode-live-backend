@@ -11,7 +11,7 @@ import (
 )
 
 type HouseKeeper interface {
-	Housekeep(interval time.Duration, done chan bool)
+	Housekeep(ctx context.Context, interval time.Duration)
 }
 
 type HousekeeperImpl struct {
@@ -29,28 +29,28 @@ func NewHouseKeeper(
 	}
 }
 
-func (h *HousekeeperImpl) Housekeep(interval time.Duration, done chan bool) {
+func (h *HousekeeperImpl) Housekeep(ctx context.Context, interval time.Duration) {
 	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-
-	for {
-		select {
-
-		case t := <-ticker.C:
-			h.logger.Info().Msg(
-				fmt.Sprintf("housekeeping at %s", t.Format("2006-01-02 15:04:05")),
-			)
-
-			ctx := context.Background()
-
-			err := h.sessionRepo.DeleteExpired(ctx)
-			if err != nil {
-				h.logger.Log().Err(err)
+	go func() {
+		for {
+			select {
+			case t := <-ticker.C:
+				h.logger.Info().Msg(
+					fmt.Sprintf("housekeeping at %s", t.Format("2006-01-02 15:04:05")),
+				)
+				h.deleteExpiredSession(ctx)
+			case <-ctx.Done():
+				h.logger.Log().Msg("gracefully terminating housekeeping")
+				ticker.Stop()
+				return
 			}
-
-		case <-done:
-			h.logger.Log().Msg("gracefully terminating housekeeping")
-			return
 		}
+	}()
+}
+
+func (h *HousekeeperImpl) deleteExpiredSession(ctx context.Context) {
+	err := h.sessionRepo.DeleteExpired(ctx)
+	if err != nil {
+		h.logger.Log().Err(err)
 	}
 }

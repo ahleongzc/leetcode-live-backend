@@ -1,22 +1,27 @@
 package app
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
+
 	"github.com/justinas/alice"
 )
 
 type Application struct {
-	authHandler      *handler.AuthHandler
-	userHandler      *handler.UserHandler
-	healthHandler    *handler.HealthHandler
-	interviewHandler *handler.InterviewHandler
-	middleware       *middleware.Middleware
-	housekeeper      background.HouseKeeper
+	authHandler           *handler.AuthHandler
+	userHandler           *handler.UserHandler
+	healthHandler         *handler.HealthHandler
+	interviewHandler      *handler.InterviewHandler
+	middleware            *middleware.Middleware
+	housekeeper           background.HouseKeeper
+	workerPool            background.WorkerPool
+	inMemoryCallbackQueue infra.InMemoryCallbackQueue
 }
 
 func NewApplication(
@@ -26,14 +31,18 @@ func NewApplication(
 	interviewHandler *handler.InterviewHandler,
 	middleware *middleware.Middleware,
 	housekeeper background.HouseKeeper,
+	workerPool background.WorkerPool,
+	inMemoryCallbackQueue infra.InMemoryCallbackQueue,
 ) *Application {
 	return &Application{
-		authHandler:      authHandler,
-		userHandler:      userHandler,
-		healthHandler:    healthHandler,
-		interviewHandler: interviewHandler,
-		middleware:       middleware,
-		housekeeper:      housekeeper,
+		authHandler:           authHandler,
+		userHandler:           userHandler,
+		healthHandler:         healthHandler,
+		interviewHandler:      interviewHandler,
+		middleware:            middleware,
+		housekeeper:           housekeeper,
+		workerPool:            workerPool,
+		inMemoryCallbackQueue: inMemoryCallbackQueue,
 	}
 }
 
@@ -59,7 +68,11 @@ func (a *Application) Handler() http.Handler {
 	).Then(mux)
 }
 
-// TODO: Add a done channel here for graceful termination
-func (a *Application) StartBackgroundTasks() {
-	go a.housekeeper.Housekeep(common.HOUSEKEEPING_INTERVAL, nil)
+func (a *Application) StartHouseKeeping(ctx context.Context, interval time.Duration) {
+	a.housekeeper.Housekeep(ctx, interval)
+}
+
+func (a *Application) StartWorkerPool(ctx context.Context, poolSize uint) {
+	a.workerPool.Init(poolSize)
+	a.workerPool.Start(ctx)
 }

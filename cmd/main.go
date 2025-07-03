@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/wire"
 
@@ -20,7 +22,10 @@ func main() {
 		panic(err)
 	}
 
-	app.StartBackgroundTasks()
+	ctx := context.Background()
+
+	app.StartHouseKeeping(ctx, common.HOUSEKEEPING_INTERVAL)
+	app.StartWorkerPool(ctx, common.WORKER_POOL_SIZE)
 
 	serverConfig := config.LoadServerConfig()
 
