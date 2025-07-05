@@ -12,8 +12,8 @@ import (
 
 type TranscriptManager interface {
 	Flush(ctx context.Context, interviewID uint) error
-	WriteCandidate(ctx context.Context, interviewID uint, transcript string) error
-	WriteInterviewer(ctx context.Context, interviewID uint, transcript, url string, role entity.Role) error
+	WriteCandidate(ctx context.Context, interviewID uint, chunk string) error
+	WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string, role entity.Role) error
 	GetTranscriptHistory(ctx context.Context, interviewID uint) ([]*entity.Transcript, error)
 }
 
@@ -35,10 +35,10 @@ func (t *TranscriptManagerImpl) GetTranscriptHistory(ctx context.Context, interv
 	return t.transcriptRepo.ListByInterviewIDAsc(ctx, interviewID)
 }
 
-func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewID uint, transcript, url string, role entity.Role) error {
+func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string, role entity.Role) error {
 	trancript := &entity.Transcript{
 		Role:        role,
-		Content:     fmt.Sprintf("Interviewer: %s", strings.TrimSpace(transcript)),
+		Content:     strings.TrimSpace(chunk),
 		InterviewID: interviewID,
 		URL:         url,
 	}
@@ -65,7 +65,7 @@ func (t *TranscriptManagerImpl) Flush(ctx context.Context, interviewID uint) err
 
 	trancript := &entity.Transcript{
 		Role:        entity.USER,
-		Content:     fmt.Sprintf("Candidate: %s", strings.TrimSpace(buffer.String())),
+		Content:     strings.TrimSpace(buffer.String()),
 		InterviewID: interviewID,
 	}
 
@@ -86,14 +86,14 @@ func (t *TranscriptManagerImpl) initialiseBuffer(interviewID uint) {
 }
 
 // Write implements TranscriptManager.
-func (t *TranscriptManagerImpl) WriteCandidate(ctx context.Context, interviewID uint, transcript string) error {
+func (t *TranscriptManagerImpl) WriteCandidate(ctx context.Context, interviewID uint, chunk string) error {
 	t.initialiseBuffer(interviewID)
 	buffer, ok := t.bufferMap[interviewID]
 	if !ok {
 		return fmt.Errorf("buffer is not initialised: %w", common.ErrInternalServerError)
 	}
 
-	buffer.WriteString(" " + transcript)
+	buffer.WriteString(" " + chunk)
 
 	if buffer.Len() < 128 {
 		return nil

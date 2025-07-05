@@ -1,6 +1,8 @@
 package entity
 
-import "github.com/ahleongzc/leetcode-live-backend/internal/model"
+import (
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
+)
 
 type Role string
 
@@ -28,9 +30,9 @@ type Transcript struct {
 	URL         string
 }
 
-func (t *Transcript) ToLLMMessage() *model.LLMMessage {
-	return &model.LLMMessage{
-		Role:    model.LLMRole(t.Role),
+func (t *Transcript) ToLLMMessage() *llm.LLMMessage {
+	return &llm.LLMMessage{
+		Role:    llm.LLMRole(t.Role),
 		Content: t.Content,
 	}
 }

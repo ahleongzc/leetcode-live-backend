@@ -15,7 +15,7 @@ import (
 )
 
 type InterviewService interface {
-	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.InterviewMessage) (*model.InterviewMessage, error)
+	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error)
 	// Returns the id of the interview
 	ConsumeInterviewToken(ctx context.Context, token string) (uint, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
@@ -90,12 +90,12 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionToken,
 	return token, nil
 }
 
-func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.InterviewMessage) (*model.InterviewMessage, error) {
-	if err := i.transcriptManager.WriteCandidate(ctx, interviewID, message.Content); err != nil {
+func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error) {
+	if err := i.transcriptManager.WriteCandidate(ctx, interviewID, util.FromPtr(message.Chunk)); err != nil {
 		return nil, err
 	}
 
-	intent, err := i.intentClassifier.ClassifyIntent(ctx, message.Content)
+	intent, err := i.intentClassifier.ClassifyIntent(ctx, util.FromPtr(message.Chunk))
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	return response, nil
 }
 
-func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *entity.Intent) (*model.InterviewMessage, error) {
+func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *entity.Intent) (*model.WebSocketMessage, error) {
 	if intent == nil {
 		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
 	}

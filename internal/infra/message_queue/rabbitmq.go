@@ -11,14 +11,13 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 func NewRabbitMQ(
 	config *config.MessageQueueConfig,
-) *RabbitMQ {
+) MessageQueue {
 	producerClient := New(
 		config.Host,
 		config.Queues,
@@ -55,8 +54,8 @@ func (r *RabbitMQ) Close() error {
 	return nil
 }
 
-func (r *RabbitMQ) StartConsuming(ctx context.Context, queue string) (<-chan *model.Delivery, error) {
-	deliveryChan := make(chan *model.Delivery)
+func (r *RabbitMQ) StartConsuming(ctx context.Context, queue string) (<-chan *Delivery, error) {
+	deliveryChan := make(chan *Delivery)
 
 	r.consumerClient.m.Lock()
 	ready := r.consumerClient.isReady
@@ -79,10 +78,11 @@ func (r *RabbitMQ) StartConsuming(ctx context.Context, queue string) (<-chan *mo
 			default:
 				deliveries, err := r.consumerClient.Consume(ctx, queue)
 				if err != nil {
-					continue
+					r.consumerClient.logger.Printf("failed to consume from queue %s, %s", queue, err)
+					return
 				}
 				for delivery := range deliveries {
-					message := &model.Delivery{
+					message := &Delivery{
 						Body: delivery.Body,
 						Acknowledger: &amqpAcknowledger{
 							delivery: delivery,

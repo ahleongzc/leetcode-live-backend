@@ -2,11 +2,9 @@ package scenario
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
@@ -19,7 +17,7 @@ func NewReviewScenario(
 	reviewRepo repo.ReviewRepo,
 	interviewRepo repo.InterviewRepo,
 	transcriptManager TranscriptManager,
-	llm infra.LLM,
+	llm llm.LLM,
 ) ReviewScenario {
 	return &ReviewScenarioImpl{
 		reviewRepo:        reviewRepo,
@@ -33,7 +31,7 @@ type ReviewScenarioImpl struct {
 	reviewRepo        repo.ReviewRepo
 	interviewRepo     repo.InterviewRepo
 	transcriptManager TranscriptManager
-	llm               infra.LLM
+	llm               llm.LLM
 }
 
 func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, interviewID uint) error {
@@ -42,13 +40,13 @@ func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, int
 		return err
 	}
 
-	llmMessages := make([]*model.LLMMessage, 0)
+	llmMessages := make([]*llm.LLMMessage, 0)
 	for _, transcript := range history {
 		llmMessages = append(llmMessages, transcript.ToLLMMessage())
 	}
 
-	llmMessages = append(llmMessages, &model.LLMMessage{
-		Role: model.ASSISTANT,
+	llmMessages = append(llmMessages, &llm.LLMMessage{
+		Role: llm.ASSISTANT,
 		Content: `
 			You have now finished conducting the technical interview, and your task is to evaluate the candidate's overall performance based on the history.
 			Consider their problem-solving skills, communication clarity, approach to edge cases, code correctness, and ability to respond to hints or clarifications.
@@ -63,7 +61,7 @@ func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, int
 		`,
 	})
 
-	req := &model.ChatCompletionsRequest{
+	req := &llm.ChatCompletionsRequest{
 		Messages: llmMessages,
 	}
 
@@ -72,7 +70,7 @@ func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, int
 		return err
 	}
 
-	review, err := r.convertToLLMResponseToReview(resp)
+	review, err := r.convertLLMResponseToReview(resp)
 	if err != nil {
 		return err
 	}
@@ -95,7 +93,7 @@ func (r *ReviewScenarioImpl) saveReviewAndUpdateInterview(ctx context.Context, r
 		return err
 	}
 
-	interview.ReviewID = reviewID
+	interview.ReviewID = util.ToPtr(reviewID)
 
 	err = r.interviewRepo.Update(ctx, interview)
 	if err != nil {
@@ -105,9 +103,7 @@ func (r *ReviewScenarioImpl) saveReviewAndUpdateInterview(ctx context.Context, r
 	return nil
 }
 
-func (r *ReviewScenarioImpl) convertToLLMResponseToReview(llmResp *model.ChatCompletionsResponse) (*entity.Review, error) {
-	fmt.Println(llmResp.GetResponse().GetContent())
-
+func (r *ReviewScenarioImpl) convertLLMResponseToReview(llmResp *llm.ChatCompletionsResponse) (*entity.Review, error) {
 	llmReviewResponse := &struct {
 		Score    uint   `json:"score"`
 		Feedback string `json:"feedback"`

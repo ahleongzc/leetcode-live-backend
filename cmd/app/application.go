@@ -2,14 +2,12 @@ package app
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 
 	"github.com/justinas/alice"
@@ -21,9 +19,9 @@ type Application struct {
 	healthHandler    *handler.HealthHandler
 	interviewHandler *handler.InterviewHandler
 	middleware       *middleware.Middleware
+	reviewConsumer   *consumer.ReviewConsumer
 	housekeeper      background.HouseKeeper
 	workerPool       background.WorkerPool
-	consumer         infra.MessageQueueConsumer
 }
 
 func NewApplication(
@@ -32,9 +30,9 @@ func NewApplication(
 	healthHandler *handler.HealthHandler,
 	interviewHandler *handler.InterviewHandler,
 	middleware *middleware.Middleware,
+	reviewConsumer *consumer.ReviewConsumer,
 	housekeeper background.HouseKeeper,
 	workerPool background.WorkerPool,
-	consumer infra.MessageQueueConsumer,
 ) *Application {
 	return &Application{
 		authHandler:      authHandler,
@@ -44,7 +42,7 @@ func NewApplication(
 		middleware:       middleware,
 		housekeeper:      housekeeper,
 		workerPool:       workerPool,
-		consumer:         consumer,
+		reviewConsumer:   reviewConsumer,
 	}
 }
 
@@ -74,16 +72,6 @@ func (a *Application) StartHouseKeeping(ctx context.Context, interval time.Durat
 	a.housekeeper.Housekeep(ctx, interval)
 }
 
-func (a *Application) StartConsumer(ctx context.Context) {
-	deliveryChan, err := a.consumer.StartConsuming(ctx, common.REVIEW_QUEUE)
-	if err != nil {
-		panic(err)
-	}
-
-	go func() {
-		for delivery := range deliveryChan {
-			delivery.Ack()
-			fmt.Println(delivery)
-		}
-	}()
+func (a *Application) StartConsumers(ctx context.Context, workerCount uint) {
+	a.reviewConsumer.ConsumeAndProcess(ctx, workerCount)
 }

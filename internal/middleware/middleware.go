@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"runtime/debug"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
@@ -74,7 +75,11 @@ func (m *Middleware) RecoverPanic(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
-				m.logger.Error().Msg("")
+				stackTrace := debug.Stack()
+				m.logger.Error().
+					Interface("panic", err).
+					Bytes("stackTrace", stackTrace).
+					Msg("panic recovered in request")
 				handler.HandleErrorResponseHTTP(w, fmt.Errorf("%w", common.ErrInternalServerError))
 			}
 		}()

@@ -36,11 +36,6 @@ func NewInterviewHandler(
 	}
 }
 
-type WebsocketMessageStruct struct {
-	Type    string `json:"type"`
-	Content string `json:"content"`
-}
-
 func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sessionID := r.Header.Get(common.SESSION_ID_HEADER_KEY)
@@ -85,7 +80,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	}
 	defer conn.Close(websocket.StatusNormalClosure, "connection closed by server")
 
-	respondChan := make(chan *model.InterviewMessage)
+	respondChan := make(chan *model.WebSocketMessage)
 	errChan := make(chan error)
 
 	go func() {
@@ -111,11 +106,11 @@ func (i *InterviewHandler) readPump(
 	ctx context.Context,
 	interviewID uint,
 	conn *websocket.Conn,
-	respondChan chan *model.InterviewMessage,
+	respondChan chan *model.WebSocketMessage,
 	errChan chan error,
 ) {
 	// Buffered channel for 20 incoming messages until it's processed downstream
-	messageChan := make(chan *model.InterviewMessage, 20)
+	messageChan := make(chan *model.WebSocketMessage, 20)
 	defer close(messageChan)
 
 	go func() {
@@ -154,19 +149,20 @@ func (i *InterviewHandler) readPump(
 			return
 		}
 
-		websocketMessage := &WebsocketMessageStruct{}
+		websocketMessage := &model.WebSocketMessage{}
 		err = ReadJSONBytes(bytes, websocketMessage)
 		if err != nil {
 			errChan <- err
 			return
 		}
 
-		message := &model.InterviewMessage{
-			Type:    model.InterviewMessageType(websocketMessage.Type),
-			Content: websocketMessage.Content,
+		if !websocketMessage.ValidClientMessage() {
+			errChan <- common.ErrBadRequest
+			return
 		}
+
 		select {
-		case messageChan <- message:
+		case messageChan <- websocketMessage:
 		case <-ctx.Done():
 			return
 		}
@@ -176,7 +172,7 @@ func (i *InterviewHandler) readPump(
 func (i *InterviewHandler) writePump(
 	ctx context.Context,
 	conn *websocket.Conn,
-	respondChan <-chan *model.InterviewMessage,
+	respondChan <-chan *model.WebSocketMessage,
 	errChan chan error,
 ) {
 	for {
@@ -186,8 +182,8 @@ func (i *InterviewHandler) writePump(
 				return
 			}
 			payload := util.NewJSONPayload()
-			payload.Add("type", message.Type)
-			payload.Add("content", message.Content)
+			payload.Add("from", message.From)
+			payload.Add("url", message.URL)
 
 			if err := WriteJSONWebsocket(ctx, conn, payload); err != nil {
 				errChan <- err

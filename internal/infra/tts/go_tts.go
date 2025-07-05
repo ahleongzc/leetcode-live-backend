@@ -19,7 +19,7 @@ type GoTTS struct {
 
 func NewGoTTS(
 	language string,
-) *GoTTS {
+) TTS {
 	return &GoTTS{
 		language: language,
 	}

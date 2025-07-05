@@ -1,10 +1,30 @@
-package model
+package llm
 
 import (
+	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 )
+
+type LLM interface {
+	ChatCompletions(ctx context.Context, request *ChatCompletionsRequest) (*ChatCompletionsResponse, error)
+}
+
+func NewLLM(
+	llmConfig *config.LLMConfig, httpClient *http.Client,
+) (LLM, error) {
+	switch llmConfig.Provider {
+	case config.LLM_DEV_PROVIDER:
+		return NewOllamaLLM(llmConfig.Model, llmConfig.BaseURL, httpClient), nil
+	case common.OPENAI:
+		return NewOpenAILLM(llmConfig.Model, llmConfig.BaseURL, llmConfig.APIKey, httpClient), nil
+	default:
+		return nil, fmt.Errorf("unsupported LLM provider %s: %w", llmConfig.Provider, common.ErrInternalServerError)
+	}
+}
 
 type LLMRole string
 

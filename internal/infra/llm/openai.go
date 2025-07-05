@@ -3,8 +3,6 @@ package llm
 import (
 	"context"
 	"net/http"
-
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 )
 
 type OpenAI struct {
@@ -14,7 +12,7 @@ type OpenAI struct {
 	httpClient *http.Client
 }
 
-func NewOpenAILLM(model, baseURL, apiKey string, httpClient *http.Client) *OpenAI {
+func NewOpenAILLM(model, baseURL, apiKey string, httpClient *http.Client) LLM {
 	return &OpenAI{
 		model:      model,
 		baseURL:    baseURL,
@@ -23,6 +21,6 @@ func NewOpenAILLM(model, baseURL, apiKey string, httpClient *http.Client) *OpenA
 	}
 }
 
-func (o *OpenAI) ChatCompletions(ctx context.Context, chatCompletionsRequest *model.ChatCompletionsRequest) (*model.ChatCompletionsResponse, error) {
+func (o *OpenAI) ChatCompletions(ctx context.Context, chatCompletionsRequest *ChatCompletionsRequest) (*ChatCompletionsResponse, error) {
 	panic("implement me")
 }

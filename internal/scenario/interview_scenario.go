@@ -8,7 +8,9 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
+	messagequeue "github.com/ahleongzc/leetcode-live-backend/internal/infra/message_queue"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/tts"
 	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
@@ -16,10 +18,10 @@ import (
 
 type InterviewScenario interface {
 	PrepareToListen(ctx context.Context, interviewID uint) error
-	Listen(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
-	GiveHints(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
-	Clarify(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
-	EndInterview(ctx context.Context, interviewID uint) (*model.InterviewMessage, error)
+	Listen(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
+	GiveHints(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
+	Clarify(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
+	EndInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	GetOngoingInterview(ctx context.Context, userID uint) (*entity.Interview, error)
 }
 
@@ -29,9 +31,9 @@ func NewInterviewScenario(
 	questionRepo repo.QuestionRepo,
 	interviewRepo repo.InterviewRepo,
 	fileRepo repo.FileRepo,
-	producer infra.MessageQueueProducer,
-	llm infra.LLM,
-	tts infra.TTS,
+	producer messagequeue.MessageQueueProducer,
+	llm llm.LLM,
+	tts tts.TTS,
 ) InterviewScenario {
 	return &InterviewScenarioImpl{
 		reviewScenario:    reviewScenario,
@@ -51,9 +53,9 @@ type InterviewScenarioImpl struct {
 	interviewRepo     repo.InterviewRepo
 	questionRepo      repo.QuestionRepo
 	fileRepo          repo.FileRepo
-	producer          infra.MessageQueueProducer
-	llm               infra.LLM
-	tts               infra.TTS
+	producer          messagequeue.MessageQueueProducer
+	llm               llm.LLM
+	tts               tts.TTS
 }
 
 // LoadQuestion implements InterviewScenario.
@@ -96,18 +98,18 @@ func (i *InterviewScenarioImpl) getInterviewQuestionDescription(ctx context.Cont
 }
 
 // ListenToCandidate implements InterviewScenario.
-func (i *InterviewScenarioImpl) Listen(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) Listen(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	return nil, nil
 }
 
 // CandidateAsksForClarification implements InterviewScenario.
-func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	err := i.transcriptManager.Flush(ctx, interviewID)
 	if err != nil {
 		return nil, err
 	}
 
-	llmMessages := make([]*model.LLMMessage, 0)
+	llmMessages := make([]*llm.LLMMessage, 0)
 	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
 	if err != nil {
 		return nil, err
@@ -117,8 +119,8 @@ func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (
 		llmMessages = append(llmMessages, transcript.ToLLMMessage())
 	}
 
-	llmMessages = append(llmMessages, &model.LLMMessage{
-		Role: model.SYSTEM,
+	llmMessages = append(llmMessages, &llm.LLMMessage{
+		Role: llm.SYSTEM,
 		Content: `
 			You are now tasked to answer clarifying questions from the candidate in a way that helps them better understand the problem without giving away the solution.
 			Be clear, concise, and professional — just like you would be in a real interview.
@@ -129,7 +131,7 @@ func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (
 		`,
 	})
 
-	req := &model.ChatCompletionsRequest{
+	req := &llm.ChatCompletionsRequest{
 		Messages: llmMessages,
 	}
 
@@ -162,27 +164,27 @@ func (i *InterviewScenarioImpl) Clarify(ctx context.Context, interviewID uint) (
 		return nil, err
 	}
 
-	return &model.InterviewMessage{
-		Type:    model.URL,
-		Content: url,
+	return &model.WebSocketMessage{
+		From: model.SERVER,
+		URL:  util.ToPtr(url),
 	}, nil
 }
 
 // CandidateAsksForHints implements InterviewScenario.
-func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	err := i.transcriptManager.Flush(ctx, interviewID)
 	if err != nil {
 		return nil, err
 	}
 
-	llmMessages := make([]*model.LLMMessage, 0)
+	llmMessages := make([]*llm.LLMMessage, 0)
 	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
 	if err != nil {
 		return nil, err
 	}
 
-	llmMessages = append(llmMessages, &model.LLMMessage{
-		Role: model.SYSTEM,
+	llmMessages = append(llmMessages, &llm.LLMMessage{
+		Role: llm.SYSTEM,
 		Content: `
 			You are a senior software engineer conducting a LeetCode-style technical interview. 
 			Your task is to provide concise, high-quality hints to help the candidate move forward based on the question they're currently solving and the history of their previous questions or messages. 
@@ -197,7 +199,7 @@ func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID uint)
 		llmMessages = append(llmMessages, transcript.ToLLMMessage())
 	}
 
-	req := &model.ChatCompletionsRequest{
+	req := &llm.ChatCompletionsRequest{
 		Messages: llmMessages,
 	}
 
@@ -230,14 +232,14 @@ func (i *InterviewScenarioImpl) GiveHints(ctx context.Context, interviewID uint)
 		return nil, err
 	}
 
-	return &model.InterviewMessage{
-		Type:    model.URL,
-		Content: url,
+	return &model.WebSocketMessage{
+		From: model.SERVER,
+		URL:  util.ToPtr(url),
 	}, nil
 }
 
 // CandidateWantsToEnd implements InterviewScenario.
-func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID uint) (*model.InterviewMessage, error) {
+func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	err := i.transcriptManager.Flush(ctx, interviewID)
 	if err != nil {
 		return nil, err
@@ -267,16 +269,12 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 		return nil, err
 	}
 
-	interviewDetails, err := json.Marshal(struct {
-		InterviewID uint `json:"interview_id"`
-	}{
-		InterviewID: interviewID,
-	})
+	reviewMessage, err := json.Marshal(&model.ReviewMessage{InterviewID: interviewID})
 	if err != nil {
 		return nil, fmt.Errorf("unable to marshal before passing into message queue for review, %s: %w", err, common.ErrInternalServerError)
 	}
 
-	if err := i.producer.Push(ctx, interviewDetails, common.REVIEW_QUEUE); err != nil {
+	if err := i.producer.Push(ctx, reviewMessage, common.REVIEW_QUEUE); err != nil {
 		return nil, err
 	}
 
@@ -290,8 +288,8 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 		return nil, err
 	}
 
-	return &model.InterviewMessage{
-		Type:    model.URL,
-		Content: url,
+	return &model.WebSocketMessage{
+		From: model.SERVER,
+		URL:  util.ToPtr(url),
 	}, nil
 }

@@ -10,8 +10,12 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/cmd/app"
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
+	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/message_queue"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/tts"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
@@ -36,12 +40,7 @@ func InitializeApplication() (*app.Application, error) {
 	authHandler := handler.NewAuthHandler(authService)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
-	messageQueueConfig, err := config.LoadMessageQueueConfig()
-	if err != nil {
-		return nil, err
-	}
-	messageQueue := infra.NewMessageQueue(messageQueueConfig)
-	healthHandler := handler.NewHealthHandler(messageQueue)
+	healthHandler := handler.NewHealthHandler()
 	websocketConfig := config.LoadWebsocketConfig()
 	reviewRepo := repo.NewReviewRepo(db)
 	interviewRepo := repo.NewInterviewRepo(db)
@@ -52,11 +51,11 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	client := infra.NewHTTPCLient()
-	llm, err := infra.NewLLM(llmConfig, client)
+	llmLLM, err := llm.NewLLM(llmConfig, client)
 	if err != nil {
 		return nil, err
 	}
-	reviewScenario := scenario.NewReviewScenario(reviewRepo, interviewRepo, transcriptManager, llm)
+	reviewScenario := scenario.NewReviewScenario(reviewRepo, interviewRepo, transcriptManager, llmLLM)
 	questionRepo := repo.NewQuestionRepo(db)
 	objectStorageConfig, err := config.LoadObjectStorageConfig()
 	if err != nil {
@@ -67,21 +66,27 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
+	messageQueueConfig, err := config.LoadMessageQueueConfig()
+	if err != nil {
+		return nil, err
+	}
+	messageQueue := messagequeue.NewMessageQueue(messageQueueConfig)
 	ttsConfig, err := config.LoadTTSConfig()
 	if err != nil {
 		return nil, err
 	}
-	tts, err := infra.NewTTS(ttsConfig, client)
+	ttsTTS, err := tts.NewTTS(ttsConfig, client)
 	if err != nil {
 		return nil, err
 	}
-	interviewScenario := scenario.NewInterviewScenario(reviewScenario, transcriptManager, questionRepo, interviewRepo, fileRepo, messageQueue, llm, tts)
+	interviewScenario := scenario.NewInterviewScenario(reviewScenario, transcriptManager, questionRepo, interviewRepo, fileRepo, messageQueue, llmLLM, ttsTTS)
 	questionScenario := scenario.NewQuestionScenario(questionRepo)
 	intentClassifier := scenario.NewIntentClassifier()
 	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, intentClassifier, interviewRepo, transcriptManager)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)
+	reviewConsumer := consumer.NewReviewConsumer(reviewScenario, messageQueue, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
 	if err != nil {
@@ -89,6 +94,6 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	inMemoryCallbackQueue := infra.NewInMemoryCallbackQueue(inMemoryQueueConfig)
 	workerPool := background.NewWorkerPool(inMemoryCallbackQueue, logger)
-	application := app.NewApplication(authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, houseKeeper, workerPool, messageQueue)
+	application := app.NewApplication(authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, reviewConsumer, houseKeeper, workerPool)
 	return application, nil
 }

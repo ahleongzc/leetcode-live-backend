@@ -1,4 +1,4 @@
-package infra
+package tts
 
 import (
 	"context"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra/tts"
 )
 
 type TTS interface {
@@ -21,9 +20,9 @@ func NewTTS(
 ) (TTS, error) {
 	switch ttsConfig.Provider {
 	case config.TTS_DEV_PROVIDER:
-		return tts.NewGoTTS(ttsConfig.Language), nil
+		return NewGoTTS(ttsConfig.Language), nil
 	case common.OPENAI:
-		return tts.NewOpenAITTS(ttsConfig.Model, ttsConfig.BaseURL, ttsConfig.APIKey, ttsConfig.Voice, httpClient), nil
+		return NewOpenAITTS(ttsConfig.Model, ttsConfig.BaseURL, ttsConfig.APIKey, ttsConfig.Voice, httpClient), nil
 	default:
 		return nil, fmt.Errorf("unsupported TTS provider %s: %w", ttsConfig.Provider, common.ErrInternalServerError)
 	}

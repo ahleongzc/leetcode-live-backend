@@ -9,7 +9,6 @@ import (
 	"net/http"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
 )
 
 type Ollama struct {
@@ -18,7 +17,7 @@ type Ollama struct {
 	httpClient *http.Client
 }
 
-func NewOllamaLLM(model, baseURL string, httpClient *http.Client) *Ollama {
+func NewOllamaLLM(model, baseURL string, httpClient *http.Client) LLM {
 	return &Ollama{
 		model:      model,
 		baseURL:    baseURL,
@@ -26,7 +25,7 @@ func NewOllamaLLM(model, baseURL string, httpClient *http.Client) *Ollama {
 	}
 }
 
-func (o *Ollama) ChatCompletions(ctx context.Context, chatCompletionsRequest *model.ChatCompletionsRequest) (*model.ChatCompletionsResponse, error) {
+func (o *Ollama) ChatCompletions(ctx context.Context, chatCompletionsRequest *ChatCompletionsRequest) (*ChatCompletionsResponse, error) {
 	if chatCompletionsRequest == nil {
 		return nil, fmt.Errorf("chatCompletionRequest cannot be nil when calling Ollama: %w", common.ErrInternalServerError)
 	}
@@ -129,7 +128,7 @@ func (o *OllamaChatCompletionsRequest) addMessage(message *OllamaMessage) {
 	o.Messages = append(o.Messages, message)
 }
 
-func (o *Ollama) convertToOllamaChatCompletionsRequest(req *model.ChatCompletionsRequest) (*OllamaChatCompletionsRequest, error) {
+func (o *Ollama) convertToOllamaChatCompletionsRequest(req *ChatCompletionsRequest) (*OllamaChatCompletionsRequest, error) {
 	if req == nil {
 		return nil, fmt.Errorf("cannot convert a nil chatCompletionsRequestModel into ollamaChatCompletionsRequest: %w", common.ErrInternalServerError)
 	}
@@ -148,17 +147,17 @@ func (o *Ollama) convertToOllamaChatCompletionsRequest(req *model.ChatCompletion
 	return ollamaChatCompletionsRequest, nil
 }
 
-func (o *OllamaMessage) convertToMessage() (*model.LLMMessage, error) {
+func (o *OllamaMessage) convertToMessage() (*LLMMessage, error) {
 	if o == nil {
 		return nil, fmt.Errorf("cannot convert nil ollamaMessage into message: %w", common.ErrInternalServerError)
 	}
-	return &model.LLMMessage{
-		Role:    model.LLMRole(o.Role),
+	return &LLMMessage{
+		Role:    LLMRole(o.Role),
 		Content: o.Content,
 	}, nil
 }
 
-func (o *OllamaChoice) convertToChoice() (*model.Choice, error) {
+func (o *OllamaChoice) convertToChoice() (*Choice, error) {
 	if o == nil {
 		return nil, fmt.Errorf("cannot convert nil ollamaChoice into choice: %w", common.ErrInternalServerError)
 	}
@@ -167,14 +166,14 @@ func (o *OllamaChoice) convertToChoice() (*model.Choice, error) {
 		return nil, err
 	}
 
-	return &model.Choice{
+	return &Choice{
 		Index:   o.Index,
 		Message: message,
 	}, nil
 }
 
-func (o *Ollama) convertToChatCompletionsResponseModel(ollamaResp *OllamaChatCompletionsResponse) (*model.ChatCompletionsResponse, error) {
-	chatCompletionsResponseModel := model.NewChatCompletionsResponse()
+func (o *Ollama) convertToChatCompletionsResponseModel(ollamaResp *OllamaChatCompletionsResponse) (*ChatCompletionsResponse, error) {
+	chatCompletionsResponseModel := NewChatCompletionsResponse()
 
 	for _, ollamaChoice := range ollamaResp.getChoices() {
 		choice, err := ollamaChoice.convertToChoice()
