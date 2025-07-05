@@ -23,6 +23,17 @@ const (
 	IN_MEMORY_QUEUE_SIZE  uint          = 100
 	WORKER_POOL_SIZE      uint          = 20
 
+	// Message Queue
+	MESSAGE_QUEUE_HOST_KEY                string        = "MESSAGE_QUEUE_HOST"
+	MESSAGE_QUEUE_RECONNECT_DELAY_SEC_KEY string        = "MESSAGE_QUEUE_RECONNECT_DELAY_SEC"
+	MESSAGE_QUEUE_REINIT_DELAY_SEC_KEY    string        = "MESSAGE_QUEUE_REINIT_DELAY_SEC"
+	MESSAGE_QUEUE_RESEND_DELAY_SEC_KEY    string        = "MESSAGE_QUEUE_RESEND_DELAY_SEC"
+	PUBLISHER_TIMEOUT                     time.Duration = 5 * time.Second
+	MESSAGE_QUEUE_CONNECTION_TIMEOUT      time.Duration = 30 * time.Second
+
+	// Queue Names
+	REVIEW_QUEUE string = "review"
+
 	// Database
 	DB_DSN_KEY               string        = "DB_DSN"
 	DB_MAX_OPEN_CONN_KEY     string        = "DB_MAX_OPEN_CONN"
@@ -56,13 +67,6 @@ const (
 	TTS_BASE_URL_KEY string = "TTS_BASE_URL"
 	TTS_API_KEY      string = "TTS_API_KEY"
 	TTS_LANGUAGE_KEY string = "TTS_LANGUAGE"
-
-	// Tables
-	SESSION_TABLE_NAME    string = "sessions"
-	USER_TABLE_NAME       string = "users"
-	TRANSCRIPT_TABLE_NAME string = "transcripts"
-	INTERVIEW_TABLE_NAME  string = "interviews"
-	QUESTION_TABLE_NAME   string = "questions"
 
 	// HTTP
 	HTTP_REQUEST_TIMEOUT       time.Duration = time.Minute

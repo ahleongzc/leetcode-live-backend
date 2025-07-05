@@ -25,7 +25,7 @@ func main() {
 	ctx := context.Background()
 
 	app.StartHouseKeeping(ctx, common.HOUSEKEEPING_INTERVAL)
-	app.StartWorkerPool(ctx, common.WORKER_POOL_SIZE)
+	app.StartConsumer(ctx)
 
 	serverConfig := config.LoadServerConfig()
 

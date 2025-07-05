@@ -2,9 +2,11 @@ package scenario
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
 	"github.com/ahleongzc/leetcode-live-backend/internal/model"
@@ -27,31 +29,31 @@ func NewInterviewScenario(
 	questionRepo repo.QuestionRepo,
 	interviewRepo repo.InterviewRepo,
 	fileRepo repo.FileRepo,
+	producer infra.MessageQueueProducer,
 	llm infra.LLM,
 	tts infra.TTS,
-	inMemoryCallbackQueue infra.InMemoryCallbackQueue,
 ) InterviewScenario {
 	return &InterviewScenarioImpl{
-		reviewScenario:        reviewScenario,
-		transcriptManager:     transcriptManager,
-		questionRepo:          questionRepo,
-		interviewRepo:         interviewRepo,
-		fileRepo:              fileRepo,
-		llm:                   llm,
-		tts:                   tts,
-		inMemoryCallbackQueue: inMemoryCallbackQueue,
+		reviewScenario:    reviewScenario,
+		transcriptManager: transcriptManager,
+		questionRepo:      questionRepo,
+		interviewRepo:     interviewRepo,
+		fileRepo:          fileRepo,
+		producer:          producer,
+		llm:               llm,
+		tts:               tts,
 	}
 }
 
 type InterviewScenarioImpl struct {
-	reviewScenario        ReviewScenario
-	transcriptManager     TranscriptManager
-	interviewRepo         repo.InterviewRepo
-	questionRepo          repo.QuestionRepo
-	fileRepo              repo.FileRepo
-	llm                   infra.LLM
-	tts                   infra.TTS
-	inMemoryCallbackQueue infra.InMemoryCallbackQueue
+	reviewScenario    ReviewScenario
+	transcriptManager TranscriptManager
+	interviewRepo     repo.InterviewRepo
+	questionRepo      repo.QuestionRepo
+	fileRepo          repo.FileRepo
+	producer          infra.MessageQueueProducer
+	llm               infra.LLM
+	tts               infra.TTS
 }
 
 // LoadQuestion implements InterviewScenario.
@@ -265,12 +267,18 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 		return nil, err
 	}
 
-	i.inMemoryCallbackQueue.Enqueue(
-		func() error {
-			ctx := context.Background()
-			return i.reviewScenario.ReviewInterviewPerformance(ctx, interviewID)
-		},
-	)
+	interviewDetails, err := json.Marshal(struct {
+		InterviewID uint `json:"interview_id"`
+	}{
+		InterviewID: interviewID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal before passing into message queue for review, %s: %w", err, common.ErrInternalServerError)
+	}
+
+	if err := i.producer.Push(ctx, interviewDetails, common.REVIEW_QUEUE); err != nil {
+		return nil, err
+	}
 
 	// TODO: Make the file name follow a structure
 	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)

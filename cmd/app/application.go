@@ -2,10 +2,12 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
+	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
@@ -14,14 +16,14 @@ import (
 )
 
 type Application struct {
-	authHandler           *handler.AuthHandler
-	userHandler           *handler.UserHandler
-	healthHandler         *handler.HealthHandler
-	interviewHandler      *handler.InterviewHandler
-	middleware            *middleware.Middleware
-	housekeeper           background.HouseKeeper
-	workerPool            background.WorkerPool
-	inMemoryCallbackQueue infra.InMemoryCallbackQueue
+	authHandler      *handler.AuthHandler
+	userHandler      *handler.UserHandler
+	healthHandler    *handler.HealthHandler
+	interviewHandler *handler.InterviewHandler
+	middleware       *middleware.Middleware
+	housekeeper      background.HouseKeeper
+	workerPool       background.WorkerPool
+	consumer         infra.MessageQueueConsumer
 }
 
 func NewApplication(
@@ -32,17 +34,17 @@ func NewApplication(
 	middleware *middleware.Middleware,
 	housekeeper background.HouseKeeper,
 	workerPool background.WorkerPool,
-	inMemoryCallbackQueue infra.InMemoryCallbackQueue,
+	consumer infra.MessageQueueConsumer,
 ) *Application {
 	return &Application{
-		authHandler:           authHandler,
-		userHandler:           userHandler,
-		healthHandler:         healthHandler,
-		interviewHandler:      interviewHandler,
-		middleware:            middleware,
-		housekeeper:           housekeeper,
-		workerPool:            workerPool,
-		inMemoryCallbackQueue: inMemoryCallbackQueue,
+		authHandler:      authHandler,
+		userHandler:      userHandler,
+		healthHandler:    healthHandler,
+		interviewHandler: interviewHandler,
+		middleware:       middleware,
+		housekeeper:      housekeeper,
+		workerPool:       workerPool,
+		consumer:         consumer,
 	}
 }
 
@@ -72,7 +74,16 @@ func (a *Application) StartHouseKeeping(ctx context.Context, interval time.Durat
 	a.housekeeper.Housekeep(ctx, interval)
 }
 
-func (a *Application) StartWorkerPool(ctx context.Context, poolSize uint) {
-	a.workerPool.Init(poolSize)
-	a.workerPool.Start(ctx)
+func (a *Application) StartConsumer(ctx context.Context) {
+	deliveryChan, err := a.consumer.StartConsuming(ctx, common.REVIEW_QUEUE)
+	if err != nil {
+		panic(err)
+	}
+
+	go func() {
+		for delivery := range deliveryChan {
+			delivery.Ack()
+			fmt.Println(delivery)
+		}
+	}()
 }

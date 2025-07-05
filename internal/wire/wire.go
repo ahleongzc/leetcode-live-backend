@@ -55,6 +55,11 @@ func InitializeApplication() (*app.Application, error) {
 		infra.NewCloudflareR2ObjectStorageClient,
 		infra.NewInMemoryCallbackQueue,
 		infra.NewHTTPCLient,
+		wire.NewSet(
+			infra.NewMessageQueue,
+			wire.Bind(new(infra.MessageQueueProducer), new(infra.MessageQueue)),
+			wire.Bind(new(infra.MessageQueueConsumer), new(infra.MessageQueue)),
+		),
 
 		// Config
 		config.LoadLLMConfig,
@@ -63,6 +68,7 @@ func InitializeApplication() (*app.Application, error) {
 		config.LoadTTSConfig,
 		config.LoadWebsocketConfig,
 		config.LoadInMemoryQueueConfig,
+		config.LoadMessageQueueConfig,
 
 		// Middleware
 		middleware.NewMiddleware,

@@ -14,4 +14,7 @@ var (
 	ErrInternalServerError = errors.New("internal server error")
 	ErrInvalidArgument     = errors.New("invalid argument")
 	ErrNormalClientClosure = errors.New("client closed connection normally")
+	ErrNotConnected        = errors.New("not connected to a server")
+	ErrAlreadyClosed       = errors.New("already closed: not connected to the server")
+	ErrShutdown            = errors.New("client is shutting down")
 )

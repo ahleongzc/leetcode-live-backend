@@ -36,7 +36,12 @@ func InitializeApplication() (*app.Application, error) {
 	authHandler := handler.NewAuthHandler(authService)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
-	healthHandler := handler.NewHealthHandler()
+	messageQueueConfig, err := config.LoadMessageQueueConfig()
+	if err != nil {
+		return nil, err
+	}
+	messageQueue := infra.NewMessageQueue(messageQueueConfig)
+	healthHandler := handler.NewHealthHandler(messageQueue)
 	websocketConfig := config.LoadWebsocketConfig()
 	reviewRepo := repo.NewReviewRepo(db)
 	interviewRepo := repo.NewInterviewRepo(db)
@@ -70,12 +75,7 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
-	if err != nil {
-		return nil, err
-	}
-	inMemoryCallbackQueue := infra.NewInMemoryCallbackQueue(inMemoryQueueConfig)
-	interviewScenario := scenario.NewInterviewScenario(reviewScenario, transcriptManager, questionRepo, interviewRepo, fileRepo, llm, tts, inMemoryCallbackQueue)
+	interviewScenario := scenario.NewInterviewScenario(reviewScenario, transcriptManager, questionRepo, interviewRepo, fileRepo, messageQueue, llm, tts)
 	questionScenario := scenario.NewQuestionScenario(questionRepo)
 	intentClassifier := scenario.NewIntentClassifier()
 	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, intentClassifier, interviewRepo, transcriptManager)
@@ -83,7 +83,12 @@ func InitializeApplication() (*app.Application, error) {
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
+	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
+	if err != nil {
+		return nil, err
+	}
+	inMemoryCallbackQueue := infra.NewInMemoryCallbackQueue(inMemoryQueueConfig)
 	workerPool := background.NewWorkerPool(inMemoryCallbackQueue, logger)
-	application := app.NewApplication(authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, houseKeeper, workerPool, inMemoryCallbackQueue)
+	application := app.NewApplication(authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, houseKeeper, workerPool, messageQueue)
 	return application, nil
 }
