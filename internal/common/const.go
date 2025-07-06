@@ -73,6 +73,7 @@ const (
 	// HTTP
 	HTTP_REQUEST_TIMEOUT       time.Duration = time.Minute
 	SESSION_TOKEN_HEADER_KEY   string        = "X-Session-Token"
+	INTERVIEW_TOKEN_HEADER_KEY string        = "X-Interview-Token"
 	AUTHORIZATION              string        = "Authorization"
 	CONTENT_TYPE               string        = "Content-Type"
 	ACCEPT                     string        = "Accept"

@@ -61,10 +61,10 @@ func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	payload := util.NewJSONPayload()
-	payload.Add("token", token)
+	header := http.Header{}
+	header.Set(common.INTERVIEW_TOKEN_HEADER_KEY, token)
 
-	WriteJSONHTTP(w, payload, http.StatusOK, nil)
+	WriteJSONHTTP(w, nil, http.StatusOK, header)
 }
 
 func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request) {
