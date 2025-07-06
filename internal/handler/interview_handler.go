@@ -101,7 +101,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	select {
 	case <-ctx.Done():
 	case <-closeChan:
-		cancel()
+		conn.Close(websocket.StatusNormalClosure, "interview ended")
 	case err := <-errChan:
 		HandleErrorResponeWebsocket(ctx, conn, err)
 		cancel()
@@ -199,7 +199,7 @@ func (i *InterviewHandler) writePump(
 				return
 			}
 
-			if message.Close {
+			if message.CloseConn {
 				closeChan <- struct{}{}
 			}
 		case <-ctx.Done():

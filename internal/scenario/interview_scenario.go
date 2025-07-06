@@ -289,8 +289,8 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 	}
 
 	return &model.WebSocketMessage{
-		From:  model.SERVER,
-		URL:   util.ToPtr(url),
-		Close: true,
+		From:      model.SERVER,
+		URL:       util.ToPtr(url),
+		CloseConn: true,
 	}, nil
 }

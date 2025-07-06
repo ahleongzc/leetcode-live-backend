@@ -8,11 +8,11 @@ const (
 )
 
 type WebSocketMessage struct {
-	From  Sender  `json:"from"`
-	Chunk *string `json:"chunk"`
-	Code  *string `json:"code"`
-	URL   *string `json:"url"`
-	Close bool
+	From      Sender  `json:"from"`
+	Chunk     *string `json:"chunk"`
+	Code      *string `json:"code"`
+	URL       *string `json:"url"`
+	CloseConn bool
 }
 
 func (w *WebSocketMessage) ValidClientMessage() bool {
