@@ -9,15 +9,38 @@ import (
 	"io"
 	"maps"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
-	"github.com/coder/websocket"
 
+	"github.com/coder/websocket"
 	"github.com/rs/zerolog/log"
 )
+
+func ParsePaginationParams(r *http.Request) (limit uint, offset uint) {
+	limit = common.PAGINATION_DEFAULT_LIMIT
+	offset = common.PAGINATION_DEFAULT_OFFSET
+
+	limitString := r.URL.Query().Get("limit")
+	offsetString := r.URL.Query().Get("offset")
+
+	if limitString != "" {
+		if limitValue, err := strconv.Atoi(limitString); nil == err && limitValue > 0 && limitValue < int(common.PAGINATION_DEFAULT_LIMIT) {
+			limit = uint(limitValue)
+		}
+	}
+
+	if offsetString != "" {
+		if offsetValue, err := strconv.Atoi(offsetString); nil == err && offsetValue >= 0 {
+			offset = uint(offsetValue)
+		}
+	}
+
+	return limit, offset
+}
 
 func WriteJSONWebsocket(ctx context.Context, conn *websocket.Conn, payload util.JSONPayload) error {
 	var marshalledPayload []byte

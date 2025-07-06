@@ -36,6 +36,24 @@ func NewInterviewHandler(
 	}
 }
 
+func (i *InterviewHandler) GetInterviewHistory(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := util.GetUserID(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	limit, offset := ParsePaginationParams(r)
+	history, pagination, err := i.interviewService.GetHistory(ctx, userID, limit, offset)
+
+	payload := util.NewJSONPayload()
+	payload.Add("data", history)
+	payload.Add("pagination", pagination)
+
+	WriteJSONHTTP(w, payload, http.StatusOK, nil)
+}
+
 func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	request := &struct {

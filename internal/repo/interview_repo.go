@@ -13,6 +13,7 @@ import (
 type InterviewRepo interface {
 	Create(ctx context.Context, interview *entity.Interview) (uint, error)
 	Update(ctx context.Context, interview *entity.Interview) error
+	ListByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error)
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
 	GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
@@ -28,6 +29,38 @@ func NewInterviewRepo(
 
 type InterviewRepoImpl struct {
 	db *gorm.DB
+}
+
+// ListByUserID implements InterviewRepo.
+func (i *InterviewRepoImpl) ListByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	var interviews []*entity.Interview
+	var total int64
+
+	if err := i.db.WithContext(ctx).
+		Model(&entity.Interview{}).
+		Where("user_id = ?", userID).
+		Count(&total).
+		Error; err != nil {
+		return nil, 0, fmt.Errorf("unable to count interviews for user ID %d: %w",
+			userID, common.ErrInternalServerError)
+	}
+
+	result := i.db.WithContext(ctx).
+		Where("user_id = ?", userID).
+		Order("end_timestamp_ms IS NULL DESC").
+		Limit(int(limit)).
+		Offset(int(offset)).
+		Find(&interviews)
+
+	if result.Error != nil {
+		return nil, 0, fmt.Errorf("unable to list interviews for user ID %d: %w",
+			userID, common.ErrInternalServerError)
+	}
+
+	return interviews, uint(total), nil
 }
 
 // GetOngoingInterviewByUserID implements InterviewRepo.

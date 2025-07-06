@@ -78,6 +78,11 @@ const (
 	CONTENT_TYPE               string        = "Content-Type"
 	ACCEPT                     string        = "Accept"
 	INCOMING_PAYLOAD_MAX_BYTES int           = 1_048_576
+
+	// Pagination
+	PAGINATION_DEFAULT_OFFSET uint = 0
+	PAGINATION_DEFAULT_LIMIT  uint = 10
+	PAGINATION_MAX_LIMIT      uint = 20
 )
 
 var (

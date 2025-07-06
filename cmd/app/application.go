@@ -58,11 +58,11 @@ func (a *Application) Handler() http.Handler {
 
 	// These routes require X-Session-Token to be in the headers
 	protected := alice.New(a.middleware.Authenticate, a.middleware.SetUserID, a.middleware.SetSessionTokenInResponseHeader)
-
 	mux.Handle("POST /v1/auth/status", protected.ThenFunc(a.authHandler.GetStatus))
 	mux.Handle("POST /v1/auth/logout", protected.ThenFunc(a.authHandler.Logout))
 
 	mux.Handle("POST /v1/interview/set-up", protected.ThenFunc(a.interviewHandler.SetUpInterview))
+	mux.Handle("GET /v1/interview/history", protected.ThenFunc(a.interviewHandler.GetInterviewHistory))
 
 	return alice.New(
 		a.middleware.RecoverPanic,

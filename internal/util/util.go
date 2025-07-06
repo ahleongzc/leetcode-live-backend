@@ -11,3 +11,7 @@ func FromPtr[T any](ptr *T) T {
 	}
 	return *ptr
 }
+
+func MillisToSeconds(milliSec int64) int64 {
+	return milliSec / 1000
+}
