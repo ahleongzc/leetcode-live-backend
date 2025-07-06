@@ -12,6 +12,7 @@ type WebSocketMessage struct {
 	Chunk *string `json:"chunk"`
 	Code  *string `json:"code"`
 	URL   *string `json:"url"`
+	Close bool
 }
 
 func (w *WebSocketMessage) ValidClientMessage() bool {

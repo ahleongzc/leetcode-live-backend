@@ -87,6 +87,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 
 	respondChan := make(chan *model.WebSocketMessage)
 	errChan := make(chan error)
+	closeChan := make(chan struct{})
 
 	go func() {
 		defer close(respondChan)
@@ -94,11 +95,13 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	}()
 
 	go func() {
-		i.writePump(ctx, conn, respondChan, errChan)
+		i.writePump(ctx, conn, respondChan, errChan, closeChan)
 	}()
 
 	select {
 	case <-ctx.Done():
+	case <-closeChan:
+		cancel()
 	case err := <-errChan:
 		HandleErrorResponeWebsocket(ctx, conn, err)
 		cancel()
@@ -179,6 +182,7 @@ func (i *InterviewHandler) writePump(
 	conn *websocket.Conn,
 	respondChan <-chan *model.WebSocketMessage,
 	errChan chan error,
+	closeChan chan struct{},
 ) {
 	for {
 		select {
@@ -193,6 +197,10 @@ func (i *InterviewHandler) writePump(
 			if err := WriteJSONWebsocket(ctx, conn, payload); err != nil {
 				errChan <- err
 				return
+			}
+
+			if message.Close {
+				closeChan <- struct{}{}
 			}
 		case <-ctx.Done():
 			return

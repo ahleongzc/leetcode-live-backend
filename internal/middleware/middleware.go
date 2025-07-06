@@ -61,7 +61,8 @@ func (m *Middleware) CORS(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", origin)
 		w.Header().Set("Access-Control-Allow-Methods", fmt.Sprintf("%s, %s, %s, %s, %s",
 			http.MethodGet, http.MethodPost, http.MethodPut, http.MethodDelete, http.MethodOptions))
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Content-Length, X-Session-Id")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Content-Length, X-Session-Token, X-Interview-Token")
+		w.Header().Set("Access-Control-Expose-Headers", "X-Session-Token, X-Interview-Token")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 		if r.Method == "OPTIONS" {
