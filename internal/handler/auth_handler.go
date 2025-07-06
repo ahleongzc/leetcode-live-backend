@@ -5,7 +5,6 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
-	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
 type AuthHandler struct {
@@ -33,28 +32,19 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionID, err := a.authService.Login(ctx, request.Email, request.Password)
+	sessionToken, err := a.authService.Login(ctx, request.Email, request.Password)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
 	}
 
-	payload := util.NewJSONPayload()
-	payload.Add("session_id", sessionID)
+	headers := http.Header{}
+	headers.Set(common.SESSION_TOKEN_HEADER_KEY, sessionToken)
 
-	WriteJSONHTTP(w, payload, http.StatusOK, nil)
+	WriteJSONHTTP(w, nil, http.StatusOK, headers)
 }
 
-func (a *AuthHandler) GetAuthStatus(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	sessionID := r.Header.Get(common.SESSION_ID_HEADER_KEY)
-
-	err := a.authService.ValidateSession(ctx, sessionID)
-	if err != nil {
-		HandleErrorResponseHTTP(w, err)
-		return
-	}
-
+func (a *AuthHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	WriteJSONHTTP(w, nil, http.StatusOK, nil)
 }
 

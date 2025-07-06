@@ -19,7 +19,7 @@ type InterviewService interface {
 	// Returns the id of the interview
 	ConsumeInterviewToken(ctx context.Context, token string) (uint, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
-	SetUpInterview(ctx context.Context, sessionID, externalQuestionID, description string) (string, error)
+	SetUpInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
 }
 
 func NewInterviewService(
@@ -49,18 +49,13 @@ type InterviewServiceImpl struct {
 	interviewRepo     repo.InterviewRepo
 }
 
-func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionToken, externalQuestionID, description string) (string, error) {
-	user, err := i.authScenario.GetUserFromSessionToken(ctx, sessionToken)
-	if err != nil {
-		return "", err
-	}
-
+func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error) {
 	questionID, err := i.questionScenario.GetOrCreateQuestion(ctx, externalQuestionID, description)
 	if err != nil {
 		return "", err
 	}
 
-	ongoingInterview, err := i.interviewScenario.GetOngoingInterview(ctx, user.ID)
+	ongoingInterview, err := i.interviewScenario.GetOngoingInterview(ctx, userID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return "", err
 	}
@@ -72,7 +67,7 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, sessionToken,
 	token := i.authScenario.GenerateRandomToken()
 
 	interview := &entity.Interview{
-		UserID:           user.ID,
+		UserID:           userID,
 		QuestionID:       questionID,
 		StartTimestampMS: time.Now().UnixMilli(),
 		Token:            util.ToPtr(token),

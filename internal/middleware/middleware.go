@@ -7,19 +7,42 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 
 	"github.com/rs/zerolog"
 )
 
 type Middleware struct {
-	logger *zerolog.Logger
+	authService service.AuthService
+	logger      *zerolog.Logger
 }
 
-func NewMiddleware(logger *zerolog.Logger) *Middleware {
+func NewMiddleware(
+	authService service.AuthService,
+	logger *zerolog.Logger,
+) *Middleware {
 	return &Middleware{
-		logger: logger,
+		logger:      logger,
+		authService: authService,
 	}
+}
+
+func (m *Middleware) Authenticate(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		sessionToken := r.Header.Get(common.SESSION_TOKEN_HEADER_KEY)
+		updatedSessionToken, err := m.authService.ValidateAndRefreshSessionToken(ctx, sessionToken)
+		if err != nil {
+			handler.HandleErrorResponseHTTP(w, err)
+			return
+		}
+
+		ctx = util.SetSessionToken(ctx, updatedSessionToken)
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (m *Middleware) CORS(next http.Handler) http.Handler {
@@ -84,6 +107,42 @@ func (m *Middleware) RecoverPanic(next http.Handler) http.Handler {
 			}
 		}()
 
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (m *Middleware) SetUserID(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		sessionToken, err := util.GetSessionToken(ctx)
+		if err != nil {
+			handler.HandleErrorResponseHTTP(w, err)
+			return
+		}
+
+		userID, err := m.authService.GetUserIDFromSessionToken(ctx, sessionToken)
+		if err != nil {
+			handler.HandleErrorResponseHTTP(w, err)
+			return
+		}
+
+		ctx = util.SetUserID(ctx, userID)
+		r = r.WithContext(ctx)
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (m *Middleware) SetSessionTokenInResponseHeader(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
+		sessionToken, err := util.GetSessionToken(ctx)
+		if err != nil {
+			handler.HandleErrorResponseHTTP(w, err)
+			return
+		}
+
+		w.Header().Set(common.SESSION_TOKEN_HEADER_KEY, sessionToken)
 		next.ServeHTTP(w, r)
 	})
 }

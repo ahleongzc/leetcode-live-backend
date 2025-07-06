@@ -38,7 +38,6 @@ func NewInterviewHandler(
 
 func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	sessionID := r.Header.Get(common.SESSION_ID_HEADER_KEY)
 	request := &struct {
 		QuestionID  string `json:"question_id"`
 		Description string `json:"description"`
@@ -50,7 +49,13 @@ func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	token, err := i.interviewService.SetUpInterview(ctx, sessionID, request.QuestionID, request.Description)
+	userID, err := util.GetUserID(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	token, err := i.interviewService.SetUpInterview(ctx, userID, request.QuestionID, request.Description)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return

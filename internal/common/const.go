@@ -7,6 +7,8 @@ type ContextKey string
 const (
 	// Context
 	REQUEST_TIMESTAMP_MS_CONTEXT_KEY ContextKey = "requestTimestampMS"
+	SESSION_TOKEN_CONTEXT_KEY        ContextKey = "sessionToken"
+	USER_ID_CONTEXT_KEY              ContextKey = "userID"
 
 	// Environment
 	ENVIRONMENT_KEY  string = "ENV"
@@ -70,7 +72,7 @@ const (
 
 	// HTTP
 	HTTP_REQUEST_TIMEOUT       time.Duration = time.Minute
-	SESSION_ID_HEADER_KEY      string        = "X-Session-ID"
+	SESSION_TOKEN_HEADER_KEY   string        = "X-Session-Token"
 	AUTHORIZATION              string        = "Authorization"
 	CONTENT_TYPE               string        = "Content-Type"
 	ACCEPT                     string        = "Accept"

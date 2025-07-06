@@ -16,6 +16,7 @@ type SessionRepo interface {
 	Create(ctx context.Context, session *entity.Session) error
 	Update(ctx context.Context, session *entity.Session) error
 	GetByToken(ctx context.Context, token string) (*entity.Session, error)
+	GetByID(ctx context.Context, id uint) (*entity.Session, error)
 	DeleteByToken(ctx context.Context, token string) error
 	DeleteExpired(ctx context.Context) (uint, error)
 }
@@ -30,6 +31,22 @@ func NewSessionRepo(
 
 type SessionRepoImpl struct {
 	db *gorm.DB
+}
+
+// GetByID implements SessionRepo.
+func (s *SessionRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Session, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	session := &entity.Session{}
+	if err := s.db.WithContext(ctx).First(session, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("session: %w", common.ErrNotFound)
+		}
+		return nil, fmt.Errorf("unable to get session with id %d: %w", id, common.ErrInternalServerError)
+	}
+
+	return session, nil
 }
 
 // DeleteExpired implements SessionRepo.

@@ -16,7 +16,10 @@ import (
 type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
 	Logout(ctx context.Context, token string) error
-	ValidateSession(ctx context.Context, token string) error
+
+	// These two functions are only called by middleware
+	ValidateAndRefreshSessionToken(ctx context.Context, token string) (string, error)
+	GetUserIDFromSessionToken(ctx context.Context, token string) (uint, error)
 }
 
 func NewAuthService(
@@ -37,9 +40,49 @@ type AuthServiceImpl struct {
 	userRepo     repo.UserRepo
 }
 
+// GetUserIDFromSessionToken implements AuthService.
+func (a *AuthServiceImpl) GetUserIDFromSessionToken(ctx context.Context, token string) (uint, error) {
+	session, err := a.sessionRepo.GetByToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return 0, common.ErrUnauthorized
+		}
+		return 0, err
+	}
+
+	user, err := a.userRepo.GetByID(ctx, session.UserID)
+	if err != nil {
+		return 0, err
+	}
+
+	return user.ID, nil
+}
+
 // ValidateSession implements AuthService.
-func (a *AuthServiceImpl) ValidateSession(ctx context.Context, token string) error {
-	return a.authScenario.ValidateSession(ctx, token)
+func (a *AuthServiceImpl) ValidateAndRefreshSessionToken(ctx context.Context, token string) (string, error) {
+	if token == "" {
+		return "", common.ErrUnauthorized
+	}
+
+	session, err := a.sessionRepo.GetByToken(ctx, token)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return "", common.ErrUnauthorized
+		}
+		return "", err
+	}
+
+	if session.ExpireTimestampMS < time.Now().UnixMilli() {
+		return "", common.ErrUnauthorized
+	}
+
+	session.ExpireTimestampMS = time.Now().Add(48 * time.Hour).UnixMilli()
+
+	if err := a.sessionRepo.Update(ctx, session); err != nil {
+		return "", err
+	}
+
+	return session.Token, nil
 }
 
 func (a *AuthServiceImpl) Logout(ctx context.Context, token string) error {

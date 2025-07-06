@@ -25,6 +25,7 @@ import (
 // Injectors from wire.go:
 
 func InitializeApplication() (*app.Application, error) {
+	authScenario := scenario.NewAuthScenario()
 	databaseConfig, err := config.LoadDatabaseConfig()
 	if err != nil {
 		return nil, err
@@ -33,9 +34,8 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	userRepo := repo.NewUserRepo(db)
 	sessionRepo := repo.NewSessionRepo(db)
-	authScenario := scenario.NewAuthScenario(userRepo, sessionRepo)
+	userRepo := repo.NewUserRepo(db)
 	authService := service.NewAuthService(authScenario, sessionRepo, userRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	userService := service.NewUserService(userRepo)
@@ -85,7 +85,7 @@ func InitializeApplication() (*app.Application, error) {
 	interviewService := service.NewInterviewService(interviewScenario, authScenario, questionScenario, intentClassifier, interviewRepo, transcriptManager)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
-	middlewareMiddleware := middleware.NewMiddleware(logger)
+	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
 	reviewConsumer := consumer.NewReviewConsumer(reviewScenario, messageQueue, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
