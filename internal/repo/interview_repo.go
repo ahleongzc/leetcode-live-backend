@@ -17,6 +17,7 @@ type InterviewRepo interface {
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
 	GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
+	CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error)
 }
 
 func NewInterviewRepo(
@@ -29,6 +30,23 @@ func NewInterviewRepo(
 
 type InterviewRepoImpl struct {
 	db *gorm.DB
+}
+
+func (i *InterviewRepoImpl) CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	var count int64
+
+	if err := i.db.WithContext(ctx).
+		Model(&entity.Interview{}).
+		Where("user_id = ? AND question_id = ?", userID, questionID).
+		Count(&count).Error; err != nil {
+		return 0, fmt.Errorf("unable to count interviews for user ID %d and question ID %d: %w",
+			userID, questionID, common.ErrInternalServerError)
+	}
+
+	return uint(count), nil
 }
 
 // ListByUserID implements InterviewRepo.
@@ -51,6 +69,7 @@ func (i *InterviewRepoImpl) ListByUserID(ctx context.Context, userID, limit, off
 	result := i.db.WithContext(ctx).
 		Where("user_id = ?", userID).
 		Order("end_timestamp_ms IS NULL DESC").
+		Order("end_timestamp_ms DESC").
 		Limit(int(limit)).
 		Offset(int(offset)).
 		Find(&interviews)

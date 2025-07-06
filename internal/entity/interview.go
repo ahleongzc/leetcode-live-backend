@@ -4,12 +4,13 @@ import "github.com/ahleongzc/leetcode-live-backend/internal/util"
 
 type Interview struct {
 	Base
-	UserID           uint
-	QuestionID       uint
-	StartTimestampMS *int64
-	ReviewID         *uint
-	EndTimestampMS   *int64
-	Token            *string
+	UserID                uint
+	QuestionID            uint
+	StartTimestampMS      *int64
+	ReviewID              *uint
+	EndTimestampMS        *int64
+	Token                 *string
+	QuestionAttemptNumber uint
 }
 
 func (i *Interview) GetReviewID() uint {

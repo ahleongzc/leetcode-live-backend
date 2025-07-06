@@ -69,7 +69,8 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 
 	for _, interview := range interviews {
 		interviewModel := &model.Interview{
-			ID: interview.UUID,
+			ID:                    interview.UUID,
+			QuestionAttemptNumber: interview.QuestionAttemptNumber,
 		}
 
 		review, err := i.reviewRepo.GetByID(ctx, interview.GetReviewID())
@@ -136,10 +137,16 @@ func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, userID uint, 
 
 	token := i.authScenario.GenerateRandomToken()
 
+	questionCount, err := i.interviewRepo.CountByUserIDAndQuestionID(ctx, userID, questionID)
+	if err != nil {
+		return "", err
+	}
+
 	interview := &entity.Interview{
-		UserID:     userID,
-		QuestionID: questionID,
-		Token:      util.ToPtr(token),
+		UserID:                userID,
+		QuestionID:            questionID,
+		Token:                 util.ToPtr(token),
+		QuestionAttemptNumber: questionCount + 1,
 	}
 
 	id, err := i.interviewRepo.Create(ctx, interview)
