@@ -5,6 +5,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
 type AuthHandler struct {
@@ -44,10 +45,23 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	WriteJSONHTTP(w, nil, http.StatusOK, headers)
 }
 
+// The logic is handled by the middleware already
 func (a *AuthHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
 	WriteJSONHTTP(w, nil, http.StatusOK, nil)
 }
 
 func (a *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
-	panic("implement me")
+	ctx := r.Context()
+	sessionToken, err := util.GetSessionToken(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	if err := a.authService.Logout(ctx, sessionToken); err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	WriteJSONHTTP(w, nil, http.StatusOK, nil)
 }

@@ -36,6 +36,46 @@ func NewInterviewHandler(
 	}
 }
 
+func (i *InterviewHandler) SetUpOngoingInterview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := util.GetUserID(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	token, err := i.interviewService.SetUpOngoingInterview(ctx, userID)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	header := http.Header{}
+	header.Set(common.INTERVIEW_TOKEN_HEADER_KEY, token)
+
+	WriteJSONHTTP(w, nil, http.StatusOK, header)
+}
+
+func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := util.GetUserID(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	ongoingInterview, err := i.interviewService.GetOngoingInterview(ctx, userID)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	payload := util.NewJSONPayload()
+	payload.Add("interview", ongoingInterview)
+
+	WriteJSONHTTP(w, payload, http.StatusOK, nil)
+}
+
 func (i *InterviewHandler) GetInterviewHistory(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, err := util.GetUserID(ctx)
@@ -46,6 +86,10 @@ func (i *InterviewHandler) GetInterviewHistory(w http.ResponseWriter, r *http.Re
 
 	limit, offset := ParsePaginationParams(r)
 	history, pagination, err := i.interviewService.GetHistory(ctx, userID, limit, offset)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
 
 	payload := util.NewJSONPayload()
 	payload.Add("data", history)
@@ -54,7 +98,7 @@ func (i *InterviewHandler) GetInterviewHistory(w http.ResponseWriter, r *http.Re
 	WriteJSONHTTP(w, payload, http.StatusOK, nil)
 }
 
-func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request) {
+func (i *InterviewHandler) SetUpNewInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	request := &struct {
 		QuestionID  string `json:"question_id"`
@@ -73,7 +117,7 @@ func (i *InterviewHandler) SetUpInterview(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	token, err := i.interviewService.SetUpInterview(ctx, userID, request.QuestionID, request.Description)
+	token, err := i.interviewService.SetUpNewInterview(ctx, userID, request.QuestionID, request.Description)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -90,7 +134,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	defer cancel()
 
 	token := r.URL.Query().Get("token")
-	interviewID, err := i.interviewService.ConsumeInterviewToken(ctx, token)
+	interviewID, err := i.interviewService.ConsumeTokenAndStartInterview(ctx, token)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return

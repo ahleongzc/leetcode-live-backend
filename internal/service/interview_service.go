@@ -18,9 +18,11 @@ type InterviewService interface {
 	GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error)
 	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error)
 	// Returns the id of the interview
-	ConsumeInterviewToken(ctx context.Context, token string) (uint, error)
+	ConsumeTokenAndStartInterview(ctx context.Context, token string) (uint, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
-	SetUpInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
+	SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
+	SetUpOngoingInterview(ctx context.Context, userID uint) (string, error)
+	GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
 }
 
 func NewInterviewService(
@@ -54,6 +56,52 @@ type InterviewServiceImpl struct {
 	interviewRepo     repo.InterviewRepo
 	reviewRepo        repo.ReviewRepo
 	questionRepo      repo.QuestionRepo
+}
+
+// SetUpOngoingInterview implements InterviewService.
+func (i *InterviewServiceImpl) SetUpOngoingInterview(ctx context.Context, userID uint) (string, error) {
+	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return "", fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+		}
+		return "", err
+	}
+
+	token := i.authScenario.GenerateRandomToken()
+	interview.Token = util.ToPtr(token)
+
+	if err := i.interviewRepo.Update(ctx, interview); err != nil {
+		return "", err
+	}
+
+	return token, nil
+}
+
+// GetOngoingInterview implements InterviewService.
+func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
+	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
+		return nil, err
+	}
+
+	if interview == nil {
+		return nil, nil
+	}
+
+	question, err := i.questionRepo.GetByID(ctx, interview.QuestionID)
+	if err != nil {
+		return nil, err
+	}
+
+	interviewModel := &model.Interview{
+		ID:                    interview.UUID,
+		QuestionAttemptNumber: interview.QuestionAttemptNumber,
+		Question:              question.ExternalID,
+		StartTimestampS:       util.ToPtr(interview.GetStartTimesampS()),
+	}
+
+	return interviewModel, nil
 }
 
 // GetHistory implements InterviewService.
@@ -100,7 +148,7 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 		interviewModel.Question = question.ExternalID
 
 		if interview.StartTimestampMS != nil {
-			interviewModel.StartTimestampS = interview.GetStartTimesampS()
+			interviewModel.StartTimestampS = util.ToPtr(interview.GetStartTimesampS())
 		}
 
 		if interview.EndTimestampMS != nil {
@@ -120,7 +168,7 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 		}, nil
 }
 
-func (i *InterviewServiceImpl) SetUpInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error) {
+func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error) {
 	questionID, err := i.questionScenario.GetOrCreateQuestion(ctx, externalQuestionID, description)
 	if err != nil {
 		return "", err
@@ -198,7 +246,7 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uin
 	}
 }
 
-func (i *InterviewServiceImpl) ConsumeInterviewToken(ctx context.Context, token string) (uint, error) {
+func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context, token string) (uint, error) {
 	interview, err := i.interviewRepo.GetByToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {

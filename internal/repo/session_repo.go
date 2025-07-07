@@ -59,7 +59,7 @@ func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) (uint, error) {
 		Delete(&entity.Session{})
 
 	if err := result.Error; err != nil {
-		return 0, fmt.Errorf("unable to delete expired session: %w", err)
+		return 0, fmt.Errorf("unable to delete expired session, %s: %w", err, common.ErrInternalServerError)
 	}
 
 	return uint(result.RowsAffected), nil
@@ -71,7 +71,7 @@ func (s *SessionRepoImpl) Update(ctx context.Context, session *entity.Session) e
 	defer cancel()
 
 	if err := s.db.WithContext(ctx).Save(session).Error; err != nil {
-		return fmt.Errorf("unable to update session: %w", common.ErrInternalServerError)
+		return fmt.Errorf("unable to update session %s: %w", err, common.ErrInternalServerError)
 	}
 
 	return nil

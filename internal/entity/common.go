@@ -7,7 +7,7 @@ import (
 
 type Base struct {
 	ID                uint   `gorm:"primarykey"`
-	UUID              string `gorm:"type:string;size:36;uniqueIndex"`
+	UUID              string `gorm:"type:string;size:36"`
 	CreateTimestampMS int64  `gorm:"autoCreateTime:milli"`
 	UpdateTimestampMS int64  `gorm:"autoUpdateTime:milli"`
 }

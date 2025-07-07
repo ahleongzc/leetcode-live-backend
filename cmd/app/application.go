@@ -61,7 +61,10 @@ func (a *Application) Handler() http.Handler {
 	mux.Handle("POST /v1/auth/status", protected.ThenFunc(a.authHandler.GetStatus))
 	mux.Handle("POST /v1/auth/logout", protected.ThenFunc(a.authHandler.Logout))
 
-	mux.Handle("POST /v1/interview/set-up", protected.ThenFunc(a.interviewHandler.SetUpInterview))
+	mux.Handle("POST /v1/interview/set-up-new", protected.ThenFunc(a.interviewHandler.SetUpNewInterview))
+	mux.Handle("POST /v1/interview/set-up-ongoing", protected.ThenFunc(a.interviewHandler.SetUpOngoingInterview))
+
+	mux.Handle("GET /v1/interview/ongoing", protected.ThenFunc(a.interviewHandler.GetOngoingInterview))
 	mux.Handle("GET /v1/interview/history", protected.ThenFunc(a.interviewHandler.GetInterviewHistory))
 
 	return alice.New(

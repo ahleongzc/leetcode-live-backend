@@ -12,6 +12,6 @@ type Interview struct {
 	Score                 *uint   `json:"score"`
 	Passed                *bool   `json:"passed"`
 	Feedback              *string `json:"feedback"`
-	StartTimestampS       int64   `json:"start_timestamp_s"`
+	StartTimestampS       *int64  `json:"start_timestamp_s"`
 	EndTimestampS         *int64  `json:"end_timestamp_s"`
 }

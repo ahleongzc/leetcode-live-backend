@@ -9,6 +9,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -104,6 +105,13 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 
 	if !isSamePassword(user.Password, password) {
 		return "", common.ErrUnauthorized
+	}
+
+	user.LoginCount++
+	user.LastLoginTimeStampMS = util.ToPtr(time.Now().UnixMilli())
+
+	if err := a.userRepo.Update(ctx, user); err != nil {
+		return "", err
 	}
 
 	session := &entity.Session{

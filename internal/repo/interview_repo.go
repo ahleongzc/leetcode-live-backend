@@ -94,7 +94,7 @@ func (i *InterviewRepoImpl) GetOngoingInterviewByUserID(ctx context.Context, use
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
 		}
-		return nil, fmt.Errorf("unable to get ongoing interview with user id %d, %s: %w", userID, err, common.ErrInternalServerError)
+		return nil, fmt.Errorf("unable to get ongoing interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
 	}
 
 	return interview, nil
