@@ -22,7 +22,6 @@ type InterviewScenario interface {
 	GiveHints(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	Clarify(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	EndInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
-	GetOngoingInterview(ctx context.Context, userID uint) (*entity.Interview, error)
 }
 
 func NewInterviewScenario(
@@ -76,11 +75,6 @@ func (i *InterviewScenarioImpl) PrepareToListen(ctx context.Context, interviewID
 	}
 
 	return nil
-}
-
-// GetCurrentOngoingInterview implements InterviewScenario.
-func (i *InterviewScenarioImpl) GetOngoingInterview(ctx context.Context, userID uint) (*entity.Interview, error) {
-	return i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
 }
 
 func (i *InterviewScenarioImpl) getInterviewQuestionDescription(ctx context.Context, interviewID uint) (string, error) {

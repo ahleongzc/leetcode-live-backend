@@ -36,7 +36,7 @@ func NewInterviewHandler(
 	}
 }
 
-func (i *InterviewHandler) AbandonOngoingInterview(w http.ResponseWriter, r *http.Request) {
+func (i *InterviewHandler) AbandonUnfinishedInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userId, err := util.GetUserID(ctx)
 	if err != nil {
@@ -44,7 +44,7 @@ func (i *InterviewHandler) AbandonOngoingInterview(w http.ResponseWriter, r *htt
 		return
 	}
 
-	if err := i.interviewService.AbandonOngoingInterview(ctx, userId); err != nil {
+	if err := i.interviewService.AbandonUnfinishedInterview(ctx, userId); err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
 	}
@@ -52,7 +52,7 @@ func (i *InterviewHandler) AbandonOngoingInterview(w http.ResponseWriter, r *htt
 	WriteJSONHTTP(w, nil, http.StatusOK, nil)
 }
 
-func (i *InterviewHandler) SetUpOngoingInterview(w http.ResponseWriter, r *http.Request) {
+func (i *InterviewHandler) SetUpUnfinishedInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, err := util.GetUserID(ctx)
 	if err != nil {
@@ -60,7 +60,7 @@ func (i *InterviewHandler) SetUpOngoingInterview(w http.ResponseWriter, r *http.
 		return
 	}
 
-	token, err := i.interviewService.SetUpOngoingInterview(ctx, userID)
+	token, err := i.interviewService.SetUpUnfinishedInterview(ctx, userID)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return

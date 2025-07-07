@@ -20,9 +20,9 @@ type InterviewService interface {
 	ConsumeTokenAndStartInterview(ctx context.Context, token string) (uint, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
 	SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
-	SetUpOngoingInterview(ctx context.Context, userID uint) (string, error)
+	SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error)
 	GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
-	AbandonOngoingInterview(ctx context.Context, userID uint) error
+	AbandonUnfinishedInterview(ctx context.Context, userID uint) error
 }
 
 func NewInterviewService(
@@ -62,17 +62,18 @@ type InterviewServiceImpl struct {
 }
 
 // AbandonOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) AbandonOngoingInterview(ctx context.Context, userID uint) error {
-	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, userID uint) error {
+	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
-			return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+			return fmt.Errorf("there is no unfinished interview :%w", common.ErrBadRequest)
 		}
 		return err
 	}
 
 	interview.End()
-	
+	interview.ConsumeToken()
+
 	if err := i.interviewRepo.Update(ctx, interview); err != nil {
 		return err
 	}
@@ -85,11 +86,11 @@ func (i *InterviewServiceImpl) AbandonOngoingInterview(ctx context.Context, user
 }
 
 // SetUpOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) SetUpOngoingInterview(ctx context.Context, userID uint) (string, error) {
-	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+func (i *InterviewServiceImpl) SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error) {
+	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
-			return "", fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+			return "", fmt.Errorf("there is no unfinished interview :%w", common.ErrBadRequest)
 		}
 		return "", err
 	}
@@ -106,7 +107,7 @@ func (i *InterviewServiceImpl) SetUpOngoingInterview(ctx context.Context, userID
 
 // GetOngoingInterview implements InterviewService.
 func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
-	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return nil, err
 	}
@@ -200,12 +201,12 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return "", err
 	}
 
-	ongoingInterview, err := i.interviewScenario.GetOngoingInterview(ctx, userID)
+	unfinishedInterview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return "", err
 	}
 
-	if ongoingInterview != nil {
+	if unfinishedInterview != nil {
 		return "", fmt.Errorf("ongoing interview exists: %w", common.ErrBadRequest)
 	}
 

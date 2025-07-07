@@ -16,7 +16,7 @@ type InterviewRepo interface {
 	ListByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error)
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
-	GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
+	GetUnfinishedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
 	CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error)
 }
 
@@ -83,7 +83,7 @@ func (i *InterviewRepoImpl) ListByUserID(ctx context.Context, userID, limit, off
 }
 
 // GetOngoingInterviewByUserID implements InterviewRepo.
-func (i *InterviewRepoImpl) GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
+func (i *InterviewRepoImpl) GetUnfinishedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
