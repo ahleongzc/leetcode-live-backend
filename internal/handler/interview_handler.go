@@ -36,6 +36,22 @@ func NewInterviewHandler(
 	}
 }
 
+func (i *InterviewHandler) AbandonOngoingInterview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userId, err := util.GetUserID(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	if err := i.interviewService.AbandonOngoingInterview(ctx, userId); err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	WriteJSONHTTP(w, nil, http.StatusOK, nil)
+}
+
 func (i *InterviewHandler) SetUpOngoingInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, err := util.GetUserID(ctx)

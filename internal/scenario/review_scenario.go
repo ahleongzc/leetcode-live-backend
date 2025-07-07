@@ -11,6 +11,7 @@ import (
 
 type ReviewScenario interface {
 	ReviewInterviewPerformance(ctx context.Context, interviewID uint) error
+	HandleAbandonedInterview(ctx context.Context, interviewID uint) error
 }
 
 func NewReviewScenario(
@@ -32,6 +33,20 @@ type ReviewScenarioImpl struct {
 	interviewRepo     repo.InterviewRepo
 	transcriptManager TranscriptManager
 	llm               llm.LLM
+}
+
+func (r *ReviewScenarioImpl) HandleAbandonedInterview(ctx context.Context, interviewID uint) error {
+	review := &entity.Review{
+		Score:    0,
+		Passed:   false,
+		Feedback: `The candidate has abandoned the interview`,
+	}
+
+	if err := r.saveReviewAndUpdateInterview(ctx, review, interviewID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, interviewID uint) error {

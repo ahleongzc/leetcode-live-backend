@@ -294,3 +294,61 @@ func (i *InterviewScenarioImpl) EndInterview(ctx context.Context, interviewID ui
 		CloseConn: true,
 	}, nil
 }
+
+// CandidateWantsToEnd implements InterviewScenario.
+func (i *InterviewScenarioImpl) AbandonInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+	err := i.transcriptManager.Flush(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	interview.End()
+
+	if err = i.interviewRepo.Update(ctx, interview); err != nil {
+		return nil, err
+	}
+
+	endingTranscript := "Hey thanks for joining this interview, I hope you had fun"
+	reader, err := i.tts.TextToSpeechReader(
+		ctx,
+		endingTranscript,
+		`
+		You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+		Pause briefly between key points. 
+		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	reviewMessage, err := json.Marshal(&model.ReviewMessage{InterviewID: interviewID})
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal before passing into message queue for review, %s: %w", err, common.ErrInternalServerError)
+	}
+
+	if err := i.producer.Push(ctx, reviewMessage, common.REVIEW_QUEUE); err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url, entity.ASSISTANT); err != nil {
+		return nil, err
+	}
+
+	return &model.WebSocketMessage{
+		From:      model.SERVER,
+		URL:       util.ToPtr(url),
+		CloseConn: true,
+	}, nil
+}

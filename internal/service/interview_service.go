@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
@@ -23,10 +22,12 @@ type InterviewService interface {
 	SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
 	SetUpOngoingInterview(ctx context.Context, userID uint) (string, error)
 	GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
+	AbandonOngoingInterview(ctx context.Context, userID uint) error
 }
 
 func NewInterviewService(
 	interviewScenario scenario.InterviewScenario,
+	reviewScenario scenario.ReviewScenario,
 	authScenario scenario.AuthScenario,
 	questionScenario scenario.QuestionScenario,
 	intentClassifier scenario.IntentClassifier,
@@ -37,6 +38,7 @@ func NewInterviewService(
 ) InterviewService {
 	return &InterviewServiceImpl{
 		questionScenario:  questionScenario,
+		reviewScenario:    reviewScenario,
 		interviewScenario: interviewScenario,
 		authScenario:      authScenario,
 		intentClassifier:  intentClassifier,
@@ -49,6 +51,7 @@ func NewInterviewService(
 
 type InterviewServiceImpl struct {
 	interviewScenario scenario.InterviewScenario
+	reviewScenario    scenario.ReviewScenario
 	authScenario      scenario.AuthScenario
 	questionScenario  scenario.QuestionScenario
 	transcriptManager scenario.TranscriptManager
@@ -56,6 +59,29 @@ type InterviewServiceImpl struct {
 	interviewRepo     repo.InterviewRepo
 	reviewRepo        repo.ReviewRepo
 	questionRepo      repo.QuestionRepo
+}
+
+// AbandonOngoingInterview implements InterviewService.
+func (i *InterviewServiceImpl) AbandonOngoingInterview(ctx context.Context, userID uint) error {
+	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+		}
+		return err
+	}
+
+	interview.End()
+	
+	if err := i.interviewRepo.Update(ctx, interview); err != nil {
+		return err
+	}
+
+	if err := i.reviewScenario.HandleAbandonedInterview(ctx, interview.ID); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // SetUpOngoingInterview implements InterviewService.
@@ -255,8 +281,8 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 		return 0, err
 	}
 
-	interview.Token = nil
-	interview.StartTimestampMS = util.ToPtr(time.Now().UnixMilli())
+	interview.ConsumeToken()
+	interview.Start()
 
 	err = i.interviewRepo.Update(ctx, interview)
 	if err != nil {

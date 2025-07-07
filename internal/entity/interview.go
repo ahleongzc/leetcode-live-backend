@@ -1,6 +1,10 @@
 package entity
 
-import "github.com/ahleongzc/leetcode-live-backend/internal/util"
+import (
+	"time"
+
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
+)
 
 type Interview struct {
 	Base
@@ -11,6 +15,27 @@ type Interview struct {
 	EndTimestampMS        *int64
 	Token                 *string
 	QuestionAttemptNumber uint
+}
+
+func (i *Interview) ConsumeToken() {
+	if i == nil {
+		return
+	}
+	i.Token = nil
+}
+
+func (i *Interview) End() {
+	if i == nil {
+		return
+	}
+	i.EndTimestampMS = util.ToPtr(time.Now().UnixMilli())
+}
+
+func (i *Interview) Start() {
+	if i == nil {
+		return
+	}
+	i.StartTimestampMS = util.ToPtr(time.Now().UnixMilli())
 }
 
 func (i *Interview) GetReviewID() uint {

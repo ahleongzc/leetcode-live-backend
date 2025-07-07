@@ -56,16 +56,18 @@ func (a *Application) Handler() http.Handler {
 
 	mux.HandleFunc("GET /v1/interview/join", a.interviewHandler.JoinInterview)
 
-	// These routes require X-Session-Token to be in the headers
+	// --- These routes require X-Session-Token to be in the headers
 	protected := alice.New(a.middleware.Authenticate, a.middleware.SetUserID, a.middleware.SetSessionTokenInResponseHeader)
 	mux.Handle("POST /v1/auth/status", protected.ThenFunc(a.authHandler.GetStatus))
 	mux.Handle("POST /v1/auth/logout", protected.ThenFunc(a.authHandler.Logout))
 
 	mux.Handle("POST /v1/interview/set-up-new", protected.ThenFunc(a.interviewHandler.SetUpNewInterview))
 	mux.Handle("POST /v1/interview/set-up-ongoing", protected.ThenFunc(a.interviewHandler.SetUpOngoingInterview))
+	mux.Handle("POST /v1/interview/abandon-ongoing", protected.ThenFunc(a.interviewHandler.AbandonOngoingInterview))
 
 	mux.Handle("GET /v1/interview/ongoing", protected.ThenFunc(a.interviewHandler.GetOngoingInterview))
 	mux.Handle("GET /v1/interview/history", protected.ThenFunc(a.interviewHandler.GetInterviewHistory))
+	// ---
 
 	return alice.New(
 		a.middleware.RecoverPanic,
