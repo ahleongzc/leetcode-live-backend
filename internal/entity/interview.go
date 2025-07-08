@@ -15,6 +15,33 @@ type Interview struct {
 	EndTimestampMS        *int64
 	Token                 *string
 	QuestionAttemptNumber uint
+	SetUpCount            uint
+	Abandoned             bool
+	AbandonedTimestampMS  *int64
+}
+
+func (i *Interview) IsUnstarted() bool {
+	if i == nil {
+		return false
+	}
+
+	return i.StartTimestampMS == nil
+}
+
+func (i *Interview) IsUnfinished() bool {
+	if i == nil {
+		return false
+	}
+
+	return i.StartTimestampMS != nil && i.EndTimestampMS == nil
+}
+
+func (i *Interview) Abandon() {
+	if i == nil {
+		return
+	}
+	i.AbandonedTimestampMS = util.ToPtr(time.Now().UnixMilli())
+	i.Abandoned = true
 }
 
 func (i *Interview) ConsumeToken() {
@@ -36,6 +63,13 @@ func (i *Interview) Start() {
 		return
 	}
 	i.StartTimestampMS = util.ToPtr(time.Now().UnixMilli())
+}
+
+func (i *Interview) HasStarted() bool {
+	if i == nil {
+		return false
+	}
+	return i.StartTimestampMS != nil
 }
 
 func (i *Interview) GetReviewID() uint {

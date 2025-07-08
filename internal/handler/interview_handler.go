@@ -72,7 +72,7 @@ func (i *InterviewHandler) SetUpUnfinishedInterview(w http.ResponseWriter, r *ht
 	WriteJSONHTTP(w, nil, http.StatusOK, header)
 }
 
-func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Request) {
+func (i *InterviewHandler) GetUnfinishedInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, err := util.GetUserID(ctx)
 	if err != nil {
@@ -80,7 +80,7 @@ func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	ongoingInterview, err := i.interviewService.GetOngoingInterview(ctx, userID)
+	ongoingInterview, err := i.interviewService.GetUnfinishedInterview(ctx, userID)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -114,6 +114,7 @@ func (i *InterviewHandler) GetInterviewHistory(w http.ResponseWriter, r *http.Re
 	WriteJSONHTTP(w, payload, http.StatusOK, nil)
 }
 
+// TODO: Don't allow user to set up new interview if there is too many abandoned interview since the last one
 func (i *InterviewHandler) SetUpNewInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	request := &struct {

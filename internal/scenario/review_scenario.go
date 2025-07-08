@@ -36,13 +36,21 @@ type ReviewScenarioImpl struct {
 }
 
 func (r *ReviewScenarioImpl) HandleAbandonedInterview(ctx context.Context, interviewID uint) error {
-	review := &entity.Review{
-		Score:    0,
-		Passed:   false,
-		Feedback: `The candidate has abandoned the interview`,
+	interview, err := r.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return err
 	}
 
-	if err := r.saveReviewAndUpdateInterview(ctx, review, interviewID); err != nil {
+	review, err := r.reviewRepo.GetByID(ctx, interview.GetReviewID())
+	if err != nil {
+		return err
+	}
+
+	review.Score = 0
+	review.Passed = false
+	review.Feedback = "The candidate has abandoned the interview"
+
+	if err := r.updateReviewAndInterview(ctx, review, interview); err != nil {
 		return err
 	}
 
@@ -85,21 +93,13 @@ func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, int
 		return err
 	}
 
-	review, err := r.convertLLMResponseToReview(resp)
-	if err != nil {
-		return err
-	}
+	llmReviewResponse := &struct {
+		Score    uint   `json:"score"`
+		Feedback string `json:"feedback"`
+		Passed   bool   `json:"passed"`
+	}{}
 
-	if err := r.saveReviewAndUpdateInterview(ctx, review, interviewID); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *ReviewScenarioImpl) saveReviewAndUpdateInterview(ctx context.Context, review *entity.Review, interviewID uint) error {
-	reviewID, err := r.reviewRepo.Create(ctx, review)
-	if err != nil {
+	if err := util.StringToJSON(resp.GetResponse().GetContent(), llmReviewResponse); err != nil {
 		return err
 	}
 
@@ -108,33 +108,30 @@ func (r *ReviewScenarioImpl) saveReviewAndUpdateInterview(ctx context.Context, r
 		return err
 	}
 
-	interview.ReviewID = util.ToPtr(reviewID)
-
-	err = r.interviewRepo.Update(ctx, interview)
+	review, err := r.reviewRepo.GetByID(ctx, interview.GetReviewID())
 	if err != nil {
+		return err
+	}
+
+	review.Score = llmReviewResponse.Score
+	review.Feedback = llmReviewResponse.Feedback
+	review.Passed = llmReviewResponse.Passed
+
+	if err := r.updateReviewAndInterview(ctx, review, interview); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (r *ReviewScenarioImpl) convertLLMResponseToReview(llmResp *llm.ChatCompletionsResponse) (*entity.Review, error) {
-	llmReviewResponse := &struct {
-		Score    uint   `json:"score"`
-		Feedback string `json:"feedback"`
-		Passed   bool   `json:"passed"`
-	}{}
-
-	err := util.StringToJSON(llmResp.GetResponse().GetContent(), llmReviewResponse)
-	if err != nil {
-		return nil, err
+func (r *ReviewScenarioImpl) updateReviewAndInterview(ctx context.Context, review *entity.Review, interview *entity.Interview) error {
+	if err := r.reviewRepo.Update(ctx, review); err != nil {
+		return err
 	}
 
-	review := &entity.Review{
-		Score:    llmReviewResponse.Score,
-		Feedback: llmReviewResponse.Feedback,
-		Passed:   llmReviewResponse.Passed,
+	if err := r.interviewRepo.Update(ctx, interview); err != nil {
+		return err
 	}
 
-	return review, nil
+	return nil
 }

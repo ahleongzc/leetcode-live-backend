@@ -65,7 +65,7 @@ func (a *Application) Handler() http.Handler {
 	mux.Handle("POST /v1/interview/set-up-unfinished", protected.ThenFunc(a.interviewHandler.SetUpUnfinishedInterview))
 	mux.Handle("POST /v1/interview/abandon-unfinished", protected.ThenFunc(a.interviewHandler.AbandonUnfinishedInterview))
 
-	mux.Handle("GET /v1/interview/ongoing", protected.ThenFunc(a.interviewHandler.GetOngoingInterview))
+	mux.Handle("GET /v1/interview/unfinished", protected.ThenFunc(a.interviewHandler.GetUnfinishedInterview))
 	mux.Handle("GET /v1/interview/history", protected.ThenFunc(a.interviewHandler.GetInterviewHistory))
 	// ---
 

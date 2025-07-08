@@ -13,11 +13,12 @@ import (
 type InterviewRepo interface {
 	Create(ctx context.Context, interview *entity.Interview) (uint, error)
 	Update(ctx context.Context, interview *entity.Interview) error
-	ListByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error)
+	ListStartedInterviewsByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error)
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
 	GetUnfinishedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
 	CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error)
+	GetUnstartedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
 }
 
 func NewInterviewRepo(
@@ -50,7 +51,7 @@ func (i *InterviewRepoImpl) CountByUserIDAndQuestionID(ctx context.Context, user
 }
 
 // ListByUserID implements InterviewRepo.
-func (i *InterviewRepoImpl) ListByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error) {
+func (i *InterviewRepoImpl) ListStartedInterviewsByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
@@ -59,7 +60,7 @@ func (i *InterviewRepoImpl) ListByUserID(ctx context.Context, userID, limit, off
 
 	if err := i.db.WithContext(ctx).
 		Model(&entity.Interview{}).
-		Where("user_id = ?", userID).
+		Where("user_id = ? AND start_timestamp_ms IS NOT NULL", userID).
 		Count(&total).
 		Error; err != nil {
 		return nil, 0, fmt.Errorf("unable to count interviews for user ID %d: %w",
@@ -67,7 +68,7 @@ func (i *InterviewRepoImpl) ListByUserID(ctx context.Context, userID, limit, off
 	}
 
 	result := i.db.WithContext(ctx).
-		Where("user_id = ?", userID).
+		Where("user_id = ? AND start_timestamp_ms IS NOT NULL", userID).
 		Order("end_timestamp_ms IS NULL DESC").
 		Order("end_timestamp_ms DESC").
 		Limit(int(limit)).
@@ -83,18 +84,36 @@ func (i *InterviewRepoImpl) ListByUserID(ctx context.Context, userID, limit, off
 }
 
 // GetOngoingInterviewByUserID implements InterviewRepo.
+func (i *InterviewRepoImpl) GetUnstartedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	interview := &entity.Interview{}
+	if err := i.db.WithContext(ctx).
+		Where("user_id = ? AND start_timestamp_ms IS NULL", userID).
+		First(interview).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+		}
+		return nil, fmt.Errorf("unable to get unstarted interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
+	}
+
+	return interview, nil
+}
+
+// GetOngoingInterviewByUserID implements InterviewRepo.
 func (i *InterviewRepoImpl) GetUnfinishedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
 	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	interview := &entity.Interview{}
 	if err := i.db.WithContext(ctx).
-		Where("user_id = ? AND end_timestamp_ms IS NULL", userID).
+		Where("user_id = ? AND start_timestamp_ms IS NOT NULL AND end_timestamp_ms IS NULL", userID).
 		First(interview).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
 		}
-		return nil, fmt.Errorf("unable to get ongoing interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
+		return nil, fmt.Errorf("unable to get unfinished interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
 	}
 
 	return interview, nil

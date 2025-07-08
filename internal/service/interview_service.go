@@ -21,7 +21,7 @@ type InterviewService interface {
 	// Returns the one-off token that is used to validate the incoming websocket request
 	SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
 	SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error)
-	GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
+	GetUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
 	AbandonUnfinishedInterview(ctx context.Context, userID uint) error
 }
 
@@ -71,8 +71,15 @@ func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, u
 		return err
 	}
 
-	interview.End()
+	var errBadRequest error
+	if interview.SetUpCount >= 3 {
+		return fmt.Errorf("previous set up interview attempt exceeded: %w", common.ErrBadRequest)
+	} else {
+		interview.End()
+	}
+
 	interview.ConsumeToken()
+	interview.Abandon()
 
 	if err := i.interviewRepo.Update(ctx, interview); err != nil {
 		return err
@@ -82,12 +89,12 @@ func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, u
 		return err
 	}
 
-	return nil
+	return errBadRequest
 }
 
 // SetUpOngoingInterview implements InterviewService.
 func (i *InterviewServiceImpl) SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error) {
-	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
+	unfinishedInterview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
 			return "", fmt.Errorf("there is no unfinished interview :%w", common.ErrBadRequest)
@@ -95,18 +102,15 @@ func (i *InterviewServiceImpl) SetUpUnfinishedInterview(ctx context.Context, use
 		return "", err
 	}
 
-	token := i.authScenario.GenerateRandomToken()
-	interview.Token = util.ToPtr(token)
-
-	if err := i.interviewRepo.Update(ctx, interview); err != nil {
+	freshToken, err := i.validateInterviewSetUpCount(ctx, unfinishedInterview)
+	if err != nil {
 		return "", err
 	}
 
-	return token, nil
+	return freshToken, nil
 }
 
-// GetOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
+func (i *InterviewServiceImpl) GetUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error) {
 	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return nil, err
@@ -133,7 +137,7 @@ func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID u
 
 // GetHistory implements InterviewService.
 func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error) {
-	interviews, total, err := i.interviewRepo.ListByUserID(ctx, userID, limit, offset)
+	interviews, total, err := i.interviewRepo.ListStartedInterviewsByUserID(ctx, userID, limit, offset)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -207,7 +211,21 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 	}
 
 	if unfinishedInterview != nil {
-		return "", fmt.Errorf("ongoing interview exists: %w", common.ErrBadRequest)
+		return "", fmt.Errorf("unfinished interview exists: %w", common.ErrBadRequest)
+	}
+
+	unstartedInterview, err := i.interviewRepo.GetUnstartedInterviewByUserID(ctx, userID)
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
+		return "", err
+	}
+
+	if unstartedInterview != nil {
+		freshToken, err := i.validateInterviewSetUpCount(ctx, unstartedInterview)
+		if err != nil {
+			return "", err
+		}
+
+		return freshToken, nil
 	}
 
 	token := i.authScenario.GenerateRandomToken()
@@ -222,6 +240,7 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		QuestionID:            questionID,
 		Token:                 util.ToPtr(token),
 		QuestionAttemptNumber: questionCount + 1,
+		SetUpCount:            1,
 	}
 
 	id, err := i.interviewRepo.Create(ctx, interview)
@@ -282,8 +301,20 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 		return 0, err
 	}
 
+	interview.SetUpCount = 0
+
+	review := &entity.Review{
+		Feedback: "The interview is still ongoing...",
+	}
+
+	reviewID, err := i.reviewRepo.Create(ctx, review)
+	if err != nil {
+		return 0, err
+	}
+
 	interview.ConsumeToken()
 	interview.Start()
+	interview.ReviewID = util.ToPtr(reviewID)
 
 	err = i.interviewRepo.Update(ctx, interview)
 	if err != nil {
@@ -291,4 +322,28 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 	}
 
 	return interview.ID, nil
+}
+
+// Checks if the set up count is more than a certain number then rejects them, else return a fresh token
+func (i *InterviewServiceImpl) validateInterviewSetUpCount(ctx context.Context, interview *entity.Interview) (string, error) {
+	if interview.SetUpCount >= 3 {
+		if interview.Token != nil {
+			interview.Token = nil
+			if err := i.interviewRepo.Update(ctx, interview); err != nil {
+				return "", err
+			}
+		}
+
+		return "", fmt.Errorf("set up interview attempt exceeded: %w", common.ErrBadRequest)
+	}
+
+	token := i.authScenario.GenerateRandomToken()
+	interview.SetUpCount++
+	interview.Token = util.ToPtr(token)
+
+	if err := i.interviewRepo.Update(ctx, interview); err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

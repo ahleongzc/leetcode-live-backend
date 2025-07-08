@@ -13,6 +13,7 @@ import (
 
 type ReviewRepo interface {
 	Create(ctx context.Context, review *entity.Review) (uint, error)
+	Update(ctx context.Context, review *entity.Review) error
 	GetByID(ctx context.Context, id uint) (*entity.Review, error)
 }
 
@@ -26,6 +27,17 @@ func NewReviewRepo(
 
 type ReviewRepoImpl struct {
 	db *gorm.DB
+}
+
+func (r *ReviewRepoImpl) Update(ctx context.Context, review *entity.Review) error {
+	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	if err := r.db.WithContext(ctx).Save(review).Error; err != nil {
+		return fmt.Errorf("unable to update review with id %d: %w", review.ID, common.ErrInternalServerError)
+	}
+
+	return nil
 }
 
 // Create implements ReviewRepo.
