@@ -10,6 +10,7 @@ type Interview struct {
 	Base
 	UserID                uint
 	QuestionID            uint
+	Code                  string
 	StartTimestampMS      *int64
 	ReviewID              *uint
 	EndTimestampMS        *int64

@@ -1,7 +1,7 @@
 .DEFAULT: run
-.PHONY: run build gen vet fmt count
+.PHONY: run build gen vet fmt count train
 
-run: setUpInfra build
+run: setUpInfra train build
 	@air
 
 build: tidy fmt gen
@@ -21,6 +21,9 @@ fmt:
 
 count:
 	@cloc .
+
+train:
+	@./fasttext supervised -input ./training-data/labels.txt -output ./bin/model
 
 setUpInfra:
 	@if [ "$$(docker ps -q -f name=rabbitmq)" = "" ]; then \
