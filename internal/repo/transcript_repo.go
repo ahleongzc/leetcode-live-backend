@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 
 	"gorm.io/gorm"
@@ -29,7 +30,7 @@ type TranscriptRepoImpl struct {
 }
 
 func (t *TranscriptRepoImpl) Create(ctx context.Context, transcript *entity.Transcript) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := t.db.WithContext(ctx).Create(transcript).Error; err != nil {
@@ -40,7 +41,7 @@ func (t *TranscriptRepoImpl) Create(ctx context.Context, transcript *entity.Tran
 }
 
 func (t *TranscriptRepoImpl) ListByInterviewIDAsc(ctx context.Context, interviewID uint) ([]*entity.Transcript, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	var transcripts []*entity.Transcript
@@ -55,7 +56,7 @@ func (t *TranscriptRepoImpl) ListByInterviewIDAsc(ctx context.Context, interview
 }
 
 func (t *TranscriptRepoImpl) ListByInterviewIDDesc(ctx context.Context, interviewID uint) ([]*entity.Transcript, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	var transcripts []*entity.Transcript

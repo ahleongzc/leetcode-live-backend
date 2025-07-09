@@ -30,7 +30,6 @@ func NewInterviewService(
 	reviewScenario scenario.ReviewScenario,
 	authScenario scenario.AuthScenario,
 	questionScenario scenario.QuestionScenario,
-	intentClassifier scenario.IntentClassifier,
 	transcriptManager scenario.TranscriptManager,
 	interviewRepo repo.InterviewRepo,
 	reviewRepo repo.ReviewRepo,
@@ -41,7 +40,6 @@ func NewInterviewService(
 		reviewScenario:    reviewScenario,
 		interviewScenario: interviewScenario,
 		authScenario:      authScenario,
-		intentClassifier:  intentClassifier,
 		transcriptManager: transcriptManager,
 		interviewRepo:     interviewRepo,
 		reviewRepo:        reviewRepo,
@@ -55,7 +53,6 @@ type InterviewServiceImpl struct {
 	authScenario      scenario.AuthScenario
 	questionScenario  scenario.QuestionScenario
 	transcriptManager scenario.TranscriptManager
-	intentClassifier  scenario.IntentClassifier
 	interviewRepo     repo.InterviewRepo
 	reviewRepo        repo.ReviewRepo
 	questionRepo      repo.QuestionRepo
@@ -260,8 +257,21 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 		return nil, err
 	}
 
-	intent, err := i.intentClassifier.ClassifyIntent(ctx, util.FromPtr(message.Chunk))
+	sufficient, err := i.transcriptManager.HasSufficientWordsInBuffer(ctx, interviewID)
 	if err != nil {
+		return nil, err
+	}
+
+	if !sufficient {
+		return nil, nil
+	}
+
+	intent, err := i.interviewScenario.ClassifyIntent(ctx, i.transcriptManager.GetSentenceInBuffer(ctx, interviewID))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.Flush(ctx, interviewID); err != nil {
 		return nil, err
 	}
 
@@ -273,19 +283,17 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	return response, nil
 }
 
-func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *entity.Intent) (*model.WebSocketMessage, error) {
+func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *model.Intent) (*model.WebSocketMessage, error) {
 	if intent == nil {
 		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
 	}
 
 	switch util.FromPtr(intent) {
-	case entity.NO_INTENT:
+	case model.NO_INTENT:
 		return i.interviewScenario.Listen(ctx, interviewID)
-	case entity.HINT_REQUEST:
+	case model.HINT_REQUEST:
 		return i.interviewScenario.GiveHints(ctx, interviewID)
-	case entity.CLARIFICATION_REQUEST:
-		return i.interviewScenario.Clarify(ctx, interviewID)
-	case entity.END_REQUEST:
+	case model.END_REQUEST:
 		return i.interviewScenario.EndInterview(ctx, interviewID)
 	default:
 		return nil, fmt.Errorf("invalid intent type %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 
 	"gorm.io/gorm"
@@ -30,7 +31,7 @@ type QuestionRepoImpl struct {
 
 // Create implements QuestionRepo.
 func (q *QuestionRepoImpl) Create(ctx context.Context, question *entity.Question) (uint, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := q.db.WithContext(ctx).Create(question).Error; err != nil {
@@ -42,7 +43,7 @@ func (q *QuestionRepoImpl) Create(ctx context.Context, question *entity.Question
 
 // GetByExternalID implements QuestionRepo.
 func (q *QuestionRepoImpl) GetByExternalID(ctx context.Context, externalID string) (*entity.Question, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	question := &entity.Question{}
@@ -61,7 +62,7 @@ func (q *QuestionRepoImpl) GetByExternalID(ctx context.Context, externalID strin
 
 // GetByExternalID implements QuestionRepo.
 func (q *QuestionRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Question, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	question := &entity.Question{}

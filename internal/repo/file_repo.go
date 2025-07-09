@@ -35,7 +35,7 @@ type FileRepoImpl struct {
 }
 
 func (f *FileRepoImpl) Upload(ctx context.Context, fileName string, content io.Reader, metadata map[string]any) (string, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.FILE_UPLOAD_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.FILE_UPLOAD_TIMEOUT)
 	defer cancel()
 
 	_, err := f.client.PutObject(

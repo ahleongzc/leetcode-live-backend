@@ -1,7 +1,6 @@
 package config
 
 import (
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 
 	"github.com/coder/websocket"
@@ -21,7 +20,7 @@ func LoadWebsocketConfig() *WebsocketConfig {
 
 	if util.IsProdEnv() {
 		acceptOptions.OriginPatterns = make([]string, 0)
-		for origin := range common.PROD_TRUSTED_ORIGINS {
+		for origin := range PROD_TRUSTED_ORIGINS {
 			acceptOptions.OriginPatterns = append(acceptOptions.OriginPatterns, origin)
 		}
 		acceptOptions.InsecureSkipVerify = false

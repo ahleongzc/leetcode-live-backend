@@ -15,6 +15,8 @@ type TranscriptManager interface {
 	WriteCandidate(ctx context.Context, interviewID uint, chunk string) error
 	WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string, role entity.Role) error
 	GetTranscriptHistory(ctx context.Context, interviewID uint) ([]*entity.Transcript, error)
+	HasSufficientWordsInBuffer(ctx context.Context, interviewID uint) (bool, error)
+	GetSentenceInBuffer(ctx context.Context, interviewID uint) string
 }
 
 func NewTranscriptManager(
@@ -29,6 +31,32 @@ func NewTranscriptManager(
 type TranscriptManagerImpl struct {
 	transcriptRepo repo.TranscriptRepo
 	bufferMap      map[uint]*strings.Builder
+}
+
+// GetSentenceInBuffer implements TranscriptManager.
+func (t *TranscriptManagerImpl) GetSentenceInBuffer(ctx context.Context, interviewID uint) string {
+	t.initialiseBuffer(interviewID)
+	buffer, ok := t.bufferMap[interviewID]
+	if !ok {
+		return ""
+	}
+
+	return buffer.String()
+}
+
+// WordsInBuffer implements TranscriptManager.
+func (t *TranscriptManagerImpl) HasSufficientWordsInBuffer(ctx context.Context, interviewID uint) (bool, error) {
+	t.initialiseBuffer(interviewID)
+	buffer, ok := t.bufferMap[interviewID]
+	if !ok {
+		return false, fmt.Errorf("no buffer exists for interview id %d: %w", interviewID, common.ErrInternalServerError)
+	}
+
+	if buffer.Len() > 30 {
+		return true, nil
+	}
+
+	return false, nil
 }
 
 func (t *TranscriptManagerImpl) GetTranscriptHistory(ctx context.Context, interviewID uint) ([]*entity.Transcript, error) {
@@ -94,15 +122,5 @@ func (t *TranscriptManagerImpl) WriteCandidate(ctx context.Context, interviewID 
 	}
 
 	buffer.WriteString(" " + chunk)
-
-	if buffer.Len() < 128 {
-		return nil
-	}
-
-	err := t.Flush(ctx, interviewID)
-	if err != nil {
-		return err
-	}
-
 	return nil
 }

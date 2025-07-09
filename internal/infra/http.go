@@ -3,11 +3,11 @@ package infra
 import (
 	"net/http"
 
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 )
 
 func NewHTTPCLient() *http.Client {
 	return &http.Client{
-		Timeout: common.HTTP_REQUEST_TIMEOUT,
+		Timeout: config.HTTP_REQUEST_TIMEOUT,
 	}
 }

@@ -67,7 +67,7 @@ func (i *InterviewHandler) SetUpUnfinishedInterview(w http.ResponseWriter, r *ht
 	}
 
 	header := http.Header{}
-	header.Set(common.INTERVIEW_TOKEN_HEADER_KEY, token)
+	header.Set(config.INTERVIEW_TOKEN_HEADER_KEY, token)
 
 	WriteJSONHTTP(w, nil, http.StatusOK, header)
 }
@@ -141,7 +141,7 @@ func (i *InterviewHandler) SetUpNewInterview(w http.ResponseWriter, r *http.Requ
 	}
 
 	header := http.Header{}
-	header.Set(common.INTERVIEW_TOKEN_HEADER_KEY, token)
+	header.Set(config.INTERVIEW_TOKEN_HEADER_KEY, token)
 
 	WriteJSONHTTP(w, nil, http.StatusOK, header)
 }

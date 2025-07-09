@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 
 	"gorm.io/gorm"
@@ -30,7 +31,7 @@ type ReviewRepoImpl struct {
 }
 
 func (r *ReviewRepoImpl) Update(ctx context.Context, review *entity.Review) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := r.db.WithContext(ctx).Save(review).Error; err != nil {
@@ -42,7 +43,7 @@ func (r *ReviewRepoImpl) Update(ctx context.Context, review *entity.Review) erro
 
 // Create implements ReviewRepo.
 func (r *ReviewRepoImpl) Create(ctx context.Context, review *entity.Review) (uint, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := r.db.WithContext(ctx).Create(review).Error; err != nil {
@@ -54,7 +55,7 @@ func (r *ReviewRepoImpl) Create(ctx context.Context, review *entity.Review) (uin
 
 // GetByID implements ReviewRepo.
 func (r *ReviewRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Review, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	review := &entity.Review{}

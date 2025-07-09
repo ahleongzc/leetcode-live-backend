@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
@@ -40,7 +40,7 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	headers := http.Header{}
-	headers.Set(common.SESSION_TOKEN_HEADER_KEY, sessionToken)
+	headers.Set(config.SESSION_TOKEN_HEADER_KEY, sessionToken)
 
 	WriteJSONHTTP(w, nil, http.StatusOK, headers)
 }

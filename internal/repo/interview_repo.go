@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 
 	"gorm.io/gorm"
@@ -34,7 +35,7 @@ type InterviewRepoImpl struct {
 }
 
 func (i *InterviewRepoImpl) CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	var count int64
@@ -52,7 +53,7 @@ func (i *InterviewRepoImpl) CountByUserIDAndQuestionID(ctx context.Context, user
 
 // ListByUserID implements InterviewRepo.
 func (i *InterviewRepoImpl) ListStartedInterviewsByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	var interviews []*entity.Interview
@@ -85,7 +86,7 @@ func (i *InterviewRepoImpl) ListStartedInterviewsByUserID(ctx context.Context, u
 
 // GetOngoingInterviewByUserID implements InterviewRepo.
 func (i *InterviewRepoImpl) GetUnstartedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	interview := &entity.Interview{}
@@ -103,7 +104,7 @@ func (i *InterviewRepoImpl) GetUnstartedInterviewByUserID(ctx context.Context, u
 
 // GetOngoingInterviewByUserID implements InterviewRepo.
 func (i *InterviewRepoImpl) GetUnfinishedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	interview := &entity.Interview{}
@@ -120,7 +121,7 @@ func (i *InterviewRepoImpl) GetUnfinishedInterviewByUserID(ctx context.Context, 
 }
 
 func (i *InterviewRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Interview, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	interview := &entity.Interview{}
@@ -136,7 +137,7 @@ func (i *InterviewRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Inter
 }
 
 func (i *InterviewRepoImpl) GetByToken(ctx context.Context, token string) (*entity.Interview, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	interview := &entity.Interview{}
@@ -154,7 +155,7 @@ func (i *InterviewRepoImpl) GetByToken(ctx context.Context, token string) (*enti
 
 // Create implements InterviewRepo.
 func (i *InterviewRepoImpl) Create(ctx context.Context, interview *entity.Interview) (uint, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := i.db.WithContext(ctx).Create(interview).Error; err != nil {
@@ -166,7 +167,7 @@ func (i *InterviewRepoImpl) Create(ctx context.Context, interview *entity.Interv
 
 // Update implements InterviewRepo.
 func (i *InterviewRepoImpl) Update(ctx context.Context, interview *entity.Interview) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := i.db.WithContext(ctx).Save(interview).Error; err != nil {

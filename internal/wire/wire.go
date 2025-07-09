@@ -10,6 +10,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	intentclassifier "github.com/ahleongzc/leetcode-live-backend/internal/infra/intent_classifier"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
 	messagequeue "github.com/ahleongzc/leetcode-live-backend/internal/infra/message_queue"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra/tts"
@@ -42,7 +43,6 @@ func InitializeApplication() (*app.Application, error) {
 		scenario.NewQuestionScenario,
 		scenario.NewInterviewScenario,
 		scenario.NewTranscriptManager,
-		scenario.NewIntentClassifier,
 		scenario.NewReviewScenario,
 
 		// Repo
@@ -53,10 +53,13 @@ func InitializeApplication() (*app.Application, error) {
 		repo.NewInterviewRepo,
 		repo.NewTranscriptRepo,
 		repo.NewFileRepo,
+		repo.NewIntentClassificationRepo,
 
 		// Infra
 		tts.NewTTS,
 		llm.NewLLM,
+		intentclassifier.NewIntentClassifier,
+
 		infra.NewPostgresDatabase,
 		infra.NewZerologLogger,
 		infra.NewCloudflareR2ObjectStorageClient,
@@ -76,6 +79,7 @@ func InitializeApplication() (*app.Application, error) {
 		config.LoadWebsocketConfig,
 		config.LoadInMemoryQueueConfig,
 		config.LoadMessageQueueConfig,
+		config.LoadIntentClassifierConfig,
 
 		// Middleware
 		middleware.NewMiddleware,

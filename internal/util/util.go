@@ -1,5 +1,7 @@
 package util
 
+import "strings"
+
 func ToPtr[T any](v T) *T {
 	return &v
 }
@@ -14,4 +16,8 @@ func FromPtr[T any](ptr *T) T {
 
 func MillisToSeconds(milliSec int64) int64 {
 	return milliSec / 1000
+}
+
+func ContainsNewline(text string) bool {
+	return strings.Contains(text, "\n")
 }

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 
 	"gorm.io/gorm"
@@ -35,7 +36,7 @@ type SessionRepoImpl struct {
 
 // GetByID implements SessionRepo.
 func (s *SessionRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Session, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	session := &entity.Session{}
@@ -51,7 +52,7 @@ func (s *SessionRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Session
 
 // DeleteExpired implements SessionRepo.
 func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) (uint, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	result := s.db.WithContext(ctx).
@@ -67,7 +68,7 @@ func (s *SessionRepoImpl) DeleteExpired(ctx context.Context) (uint, error) {
 
 // Update implements SessionRepo.
 func (s *SessionRepoImpl) Update(ctx context.Context, session *entity.Session) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := s.db.WithContext(ctx).Save(session).Error; err != nil {
@@ -79,7 +80,7 @@ func (s *SessionRepoImpl) Update(ctx context.Context, session *entity.Session) e
 
 // DeleteByToken implements SessionRepo.
 func (s *SessionRepoImpl) DeleteByToken(ctx context.Context, token string) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	result := s.db.WithContext(ctx).
@@ -99,7 +100,7 @@ func (s *SessionRepoImpl) DeleteByToken(ctx context.Context, token string) error
 
 // Create implements SessionRepo.
 func (s *SessionRepoImpl) Create(ctx context.Context, session *entity.Session) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := s.db.WithContext(ctx).Create(session).Error; err != nil {
@@ -111,7 +112,7 @@ func (s *SessionRepoImpl) Create(ctx context.Context, session *entity.Session) e
 
 // GetByID implements SessionRepo.
 func (s *SessionRepoImpl) GetByToken(ctx context.Context, token string) (*entity.Session, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	var session entity.Session

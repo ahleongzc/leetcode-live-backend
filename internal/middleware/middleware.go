@@ -6,6 +6,7 @@ import (
 	"runtime/debug"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
@@ -31,7 +32,7 @@ func NewMiddleware(
 func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
-		sessionToken := r.Header.Get(common.SESSION_TOKEN_HEADER_KEY)
+		sessionToken := r.Header.Get(config.SESSION_TOKEN_HEADER_KEY)
 		updatedSessionToken, err := m.authService.ValidateAndRefreshSessionToken(ctx, sessionToken)
 		if err != nil {
 			handler.HandleErrorResponseHTTP(w, err)
@@ -143,7 +144,7 @@ func (m *Middleware) SetSessionTokenInResponseHeader(next http.Handler) http.Han
 			return
 		}
 
-		w.Header().Set(common.SESSION_TOKEN_HEADER_KEY, sessionToken)
+		w.Header().Set(config.SESSION_TOKEN_HEADER_KEY, sessionToken)
 		next.ServeHTTP(w, r)
 	})
 }

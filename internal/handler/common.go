@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 
 	"github.com/coder/websocket"
@@ -21,14 +22,14 @@ import (
 )
 
 func ParsePaginationParams(r *http.Request) (limit uint, offset uint) {
-	limit = common.PAGINATION_DEFAULT_LIMIT
-	offset = common.PAGINATION_DEFAULT_OFFSET
+	limit = config.PAGINATION_DEFAULT_LIMIT
+	offset = config.PAGINATION_DEFAULT_OFFSET
 
 	limitString := r.URL.Query().Get("limit")
 	offsetString := r.URL.Query().Get("offset")
 
 	if limitString != "" {
-		if limitValue, err := strconv.Atoi(limitString); nil == err && limitValue > 0 && limitValue < int(common.PAGINATION_DEFAULT_LIMIT) {
+		if limitValue, err := strconv.Atoi(limitString); nil == err && limitValue > 0 && limitValue < int(config.PAGINATION_DEFAULT_LIMIT) {
 			limit = uint(limitValue)
 		}
 	}
@@ -82,7 +83,7 @@ func ReadJSONBytes(data []byte, dst any) error {
 		return fmt.Errorf("dst cannot be nil when calling readJSON for websockets: %w", common.ErrInternalServerError)
 	}
 
-	maxBytes := common.INCOMING_PAYLOAD_MAX_BYTES
+	maxBytes := config.INCOMING_PAYLOAD_MAX_BYTES
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 
@@ -99,7 +100,7 @@ func ReadJSONHTTPReq(w http.ResponseWriter, r *http.Request, dst any) error {
 		return fmt.Errorf("dst cannot be nil when calling readJSON for http: %w", common.ErrInternalServerError)
 	}
 
-	maxBytes := common.INCOMING_PAYLOAD_MAX_BYTES
+	maxBytes := config.INCOMING_PAYLOAD_MAX_BYTES
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 
 	dec := json.NewDecoder(r.Body)

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/wire"
 
@@ -24,8 +23,8 @@ func main() {
 
 	ctx := context.Background()
 
-	app.StartHouseKeeping(ctx, common.HOUSEKEEPING_INTERVAL)
-	app.StartConsumers(ctx, common.WORKER_POOL_SIZE)
+	app.StartHouseKeeping(ctx, config.HOUSEKEEPING_INTERVAL)
+	app.StartConsumers(ctx, config.CONSUMER_POOL_SIZE)
 
 	serverConfig := config.LoadServerConfig()
 

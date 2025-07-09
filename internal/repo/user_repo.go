@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
 
 	"gorm.io/gorm"
@@ -33,7 +34,7 @@ type UserRepoImpl struct {
 
 // GetByEmail implements UserRepo.
 func (u *UserRepoImpl) GetByEmail(ctx context.Context, email string) (*entity.User, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	user := &entity.User{}
@@ -49,7 +50,7 @@ func (u *UserRepoImpl) GetByEmail(ctx context.Context, email string) (*entity.Us
 
 // Create implements UserRepo.
 func (u *UserRepoImpl) Create(ctx context.Context, user *entity.User) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := u.db.WithContext(ctx).Create(user).Error; err != nil {
@@ -61,7 +62,7 @@ func (u *UserRepoImpl) Create(ctx context.Context, user *entity.User) error {
 
 // Delete implements UserRepo.
 func (u *UserRepoImpl) DeleteByID(ctx context.Context, id uint) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	result := u.db.WithContext(ctx).Delete(&entity.User{}, id)
@@ -78,7 +79,7 @@ func (u *UserRepoImpl) DeleteByID(ctx context.Context, id uint) error {
 
 // GetByID implements UserRepo.
 func (u *UserRepoImpl) GetByID(ctx context.Context, id uint) (*entity.User, error) {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	user := &entity.User{}
@@ -94,7 +95,7 @@ func (u *UserRepoImpl) GetByID(ctx context.Context, id uint) (*entity.User, erro
 
 // Update implements UserRepo.
 func (u *UserRepoImpl) Update(ctx context.Context, user *entity.User) error {
-	ctx, cancel := context.WithTimeout(ctx, common.DB_QUERY_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
 	defer cancel()
 
 	if err := u.db.WithContext(ctx).Save(user).Error; err != nil {

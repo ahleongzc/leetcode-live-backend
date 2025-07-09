@@ -13,6 +13,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	"github.com/ahleongzc/leetcode-live-backend/internal/infra/intent_classifier"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra/message_queue"
 	"github.com/ahleongzc/leetcode-live-backend/internal/infra/tts"
@@ -66,6 +67,15 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
+	intentClassifierConfig, err := config.LoadIntentClassifierConfig()
+	if err != nil {
+		return nil, err
+	}
+	intentClassifier, err := intentclassifier.NewIntentClassifier(intentClassifierConfig)
+	if err != nil {
+		return nil, err
+	}
+	intentClassificationRepo := repo.NewIntentClassificationRepo(intentClassifier)
 	messageQueueConfig, err := config.LoadMessageQueueConfig()
 	if err != nil {
 		return nil, err
@@ -79,10 +89,9 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	interviewScenario := scenario.NewInterviewScenario(reviewScenario, transcriptManager, questionRepo, interviewRepo, fileRepo, messageQueue, llmLLM, ttsTTS)
+	interviewScenario := scenario.NewInterviewScenario(reviewScenario, transcriptManager, questionRepo, interviewRepo, fileRepo, intentClassificationRepo, messageQueue, llmLLM, ttsTTS)
 	questionScenario := scenario.NewQuestionScenario(questionRepo)
-	intentClassifier := scenario.NewIntentClassifier()
-	interviewService := service.NewInterviewService(interviewScenario, reviewScenario, authScenario, questionScenario, intentClassifier, transcriptManager, interviewRepo, reviewRepo, questionRepo)
+	interviewService := service.NewInterviewService(interviewScenario, reviewScenario, authScenario, questionScenario, transcriptManager, interviewRepo, reviewRepo, questionRepo)
 	logger := infra.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(authService, logger)

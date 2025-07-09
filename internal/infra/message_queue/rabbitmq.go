@@ -62,7 +62,7 @@ func (r *RabbitMQ) StartConsuming(ctx context.Context, queue string) (<-chan *De
 	r.consumerClient.m.Unlock()
 
 	if !ready {
-		err := waitForConnection(common.MESSAGE_QUEUE_CONNECTION_TIMEOUT, r.consumerClient)
+		err := waitForConnection(config.MESSAGE_QUEUE_CONNECTION_TIMEOUT, r.consumerClient)
 		if err != nil {
 			close(deliveryChan)
 			return nil, err
@@ -107,7 +107,7 @@ func (r *RabbitMQ) Push(ctx context.Context, data []byte, queue string) error {
 	r.producerClient.m.Unlock()
 
 	if !ready {
-		err := waitForConnection(common.MESSAGE_QUEUE_CONNECTION_TIMEOUT, r.producerClient)
+		err := waitForConnection(config.MESSAGE_QUEUE_CONNECTION_TIMEOUT, r.producerClient)
 		if err != nil {
 			return err
 		}
@@ -356,7 +356,7 @@ func (c *RabbitMQClient) UnsafePush(ctx context.Context, data []byte, queue stri
 		return fmt.Errorf("queue %s not initialized: %w", queue, common.ErrInternalServerError)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, common.PUBLISHER_TIMEOUT)
+	ctx, cancel := context.WithTimeout(ctx, config.PUBLISHER_TIMEOUT)
 	defer cancel()
 
 	return c.channel.PublishWithContext(

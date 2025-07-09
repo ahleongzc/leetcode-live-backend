@@ -22,6 +22,7 @@ type InterviewScenario interface {
 	GiveHints(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	Clarify(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	EndInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
+	ClassifyIntent(ctx context.Context, sentence string) (*model.Intent, error)
 }
 
 func NewInterviewScenario(
@@ -30,31 +31,34 @@ func NewInterviewScenario(
 	questionRepo repo.QuestionRepo,
 	interviewRepo repo.InterviewRepo,
 	fileRepo repo.FileRepo,
+	intentClassificationRepo repo.IntentClassificationRepo,
 	producer messagequeue.MessageQueueProducer,
 	llm llm.LLM,
 	tts tts.TTS,
 ) InterviewScenario {
 	return &InterviewScenarioImpl{
-		reviewScenario:    reviewScenario,
-		transcriptManager: transcriptManager,
-		questionRepo:      questionRepo,
-		interviewRepo:     interviewRepo,
-		fileRepo:          fileRepo,
-		producer:          producer,
-		llm:               llm,
-		tts:               tts,
+		reviewScenario:           reviewScenario,
+		transcriptManager:        transcriptManager,
+		questionRepo:             questionRepo,
+		interviewRepo:            interviewRepo,
+		intentClassificationRepo: intentClassificationRepo,
+		fileRepo:                 fileRepo,
+		producer:                 producer,
+		llm:                      llm,
+		tts:                      tts,
 	}
 }
 
 type InterviewScenarioImpl struct {
-	reviewScenario    ReviewScenario
-	transcriptManager TranscriptManager
-	interviewRepo     repo.InterviewRepo
-	questionRepo      repo.QuestionRepo
-	fileRepo          repo.FileRepo
-	producer          messagequeue.MessageQueueProducer
-	llm               llm.LLM
-	tts               tts.TTS
+	reviewScenario           ReviewScenario
+	transcriptManager        TranscriptManager
+	interviewRepo            repo.InterviewRepo
+	questionRepo             repo.QuestionRepo
+	fileRepo                 repo.FileRepo
+	intentClassificationRepo repo.IntentClassificationRepo
+	producer                 messagequeue.MessageQueueProducer
+	llm                      llm.LLM
+	tts                      tts.TTS
 }
 
 // LoadQuestion implements InterviewScenario.
@@ -345,4 +349,14 @@ func (i *InterviewScenarioImpl) AbandonInterview(ctx context.Context, interviewI
 		URL:       util.ToPtr(url),
 		CloseConn: true,
 	}, nil
+}
+
+func (i *InterviewScenarioImpl) ClassifyIntent(ctx context.Context, sentence string) (*model.Intent, error) {
+	fmt.Println("The sentence is" + sentence)
+	intent, err := i.intentClassificationRepo.ClassifyIntent(ctx, sentence)
+	if err != nil {
+		return nil, err
+	}
+
+	return intent, nil
 }

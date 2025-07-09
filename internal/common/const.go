@@ -16,32 +16,25 @@ const (
 	PROD_ENVIRONMENT string = "production"
 
 	// Server
-	PORT_KEY              string        = "PORT"
-	IDLE_TIMEOUT_SEC_KEY  string        = "IDLE_TIMEOUT"
-	READ_TIMEOUT_SEC_KEY  string        = "READ_TIMEOUT"
-	WRITE_TIMEOUT_SEC_KEY string        = "WRITE_TIMEOUT"
-	HOUSEKEEPING_INTERVAL time.Duration = 5 * time.Second
-	WRITE_TO_FILE_TIMEOUT time.Duration = 5 * time.Second
-	IN_MEMORY_QUEUE_SIZE  uint          = 100
-	WORKER_POOL_SIZE      uint          = 20
+	PORT_KEY              string = "PORT"
+	IDLE_TIMEOUT_SEC_KEY  string = "IDLE_TIMEOUT"
+	READ_TIMEOUT_SEC_KEY  string = "READ_TIMEOUT"
+	WRITE_TIMEOUT_SEC_KEY string = "WRITE_TIMEOUT"
 
 	// Message Queue
-	MESSAGE_QUEUE_HOST_KEY                string        = "MESSAGE_QUEUE_HOST"
-	MESSAGE_QUEUE_RECONNECT_DELAY_SEC_KEY string        = "MESSAGE_QUEUE_RECONNECT_DELAY_SEC"
-	MESSAGE_QUEUE_REINIT_DELAY_SEC_KEY    string        = "MESSAGE_QUEUE_REINIT_DELAY_SEC"
-	MESSAGE_QUEUE_RESEND_DELAY_SEC_KEY    string        = "MESSAGE_QUEUE_RESEND_DELAY_SEC"
-	PUBLISHER_TIMEOUT                     time.Duration = 5 * time.Second
-	MESSAGE_QUEUE_CONNECTION_TIMEOUT      time.Duration = 30 * time.Second
+	MESSAGE_QUEUE_HOST_KEY                string = "MESSAGE_QUEUE_HOST"
+	MESSAGE_QUEUE_RECONNECT_DELAY_SEC_KEY string = "MESSAGE_QUEUE_RECONNECT_DELAY_SEC"
+	MESSAGE_QUEUE_REINIT_DELAY_SEC_KEY    string = "MESSAGE_QUEUE_REINIT_DELAY_SEC"
+	MESSAGE_QUEUE_RESEND_DELAY_SEC_KEY    string = "MESSAGE_QUEUE_RESEND_DELAY_SEC"
 
 	// Queue Names
 	REVIEW_QUEUE string = "review"
 
 	// Database
-	DB_DSN_KEY               string        = "DB_DSN"
-	DB_MAX_OPEN_CONN_KEY     string        = "DB_MAX_OPEN_CONN"
-	DB_MAX_IDLE_CONN_KEY     string        = "DB_MAX_IDLE_CONN"
-	DB_MAX_IDLE_TIME_SEC_KEY string        = "DB_MAX_IDLE_TIME_SEC"
-	DB_QUERY_TIMEOUT         time.Duration = 1 * time.Second
+	DB_DSN_KEY               string = "DB_DSN"
+	DB_MAX_OPEN_CONN_KEY     string = "DB_MAX_OPEN_CONN"
+	DB_MAX_IDLE_CONN_KEY     string = "DB_MAX_IDLE_CONN"
+	DB_MAX_IDLE_TIME_SEC_KEY string = "DB_MAX_IDLE_TIME_SEC"
 
 	// Object Storage
 	OBJECT_STORAGE_ACCESS_KEY     string        = "OBJECT_STORAGE_ACCESS_KEY"
@@ -49,7 +42,6 @@ const (
 	OBJECT_STORAGE_ENDPOINT_KEY   string        = "OBJECT_STORAGE_ENDPOINT"
 	OBJECT_STORAGE_BUCKET_KEY     string        = "OBJECT_STORAGE_BUCKET"
 	OBJECT_STORAGE_REGION_KEY     string        = "OBJECT_STORAGE_REGION"
-	FILE_UPLOAD_TIMEOUT           time.Duration = 10 * time.Second
 	PRESIGNED_URL_EXPIRY_DURATION time.Duration = 15 * time.Minute
 
 	// AI Providers
@@ -70,23 +62,8 @@ const (
 	TTS_API_KEY      string = "TTS_API_KEY"
 	TTS_LANGUAGE_KEY string = "TTS_LANGUAGE"
 
-	// HTTP
-	HTTP_REQUEST_TIMEOUT       time.Duration = time.Minute
-	SESSION_TOKEN_HEADER_KEY   string        = "X-Session-Token"
-	INTERVIEW_TOKEN_HEADER_KEY string        = "X-Interview-Token"
-	AUTHORIZATION              string        = "Authorization"
-	CONTENT_TYPE               string        = "Content-Type"
-	ACCEPT                     string        = "Accept"
-	INCOMING_PAYLOAD_MAX_BYTES int           = 1_048_576
-
-	// Pagination
-	PAGINATION_DEFAULT_OFFSET uint = 0
-	PAGINATION_DEFAULT_LIMIT  uint = 10
-	PAGINATION_MAX_LIMIT      uint = 20
-)
-
-var (
-	PROD_TRUSTED_ORIGINS = map[string]struct{}{
-		"https://leetcode.com": {},
-	}
+	// Constants
+	AUTHORIZATION string = "Authorization"
+	CONTENT_TYPE  string = "Content-Type"
+	ACCEPT        string = "Accept"
 )
