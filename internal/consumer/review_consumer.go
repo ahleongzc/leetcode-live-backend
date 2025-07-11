@@ -6,33 +6,32 @@ import (
 	"runtime/debug"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-	messagequeue "github.com/ahleongzc/leetcode-live-backend/internal/infra/message_queue"
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
-	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
-
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
+	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/rs/zerolog"
 )
 
 func NewReviewConsumer(
-	reviewScenario scenario.ReviewScenario,
-	consumer messagequeue.MessageQueueConsumer,
+	reviewService service.ReviewService,
+	consumerRepo repo.MessageQueueConsumerRepo,
 	logger *zerolog.Logger,
 ) *ReviewConsumer {
 	return &ReviewConsumer{
-		reviewScenario: reviewScenario,
-		consumer:       consumer,
-		logger:         logger,
+		reviewService: reviewService,
+		consumerRepo:  consumerRepo,
+		logger:        logger,
 	}
 }
 
 type ReviewConsumer struct {
-	reviewScenario scenario.ReviewScenario
-	consumer       messagequeue.MessageQueueConsumer
-	logger         *zerolog.Logger
+	reviewService service.ReviewService
+	consumerRepo  repo.MessageQueueConsumerRepo
+	logger        *zerolog.Logger
 }
 
 func (r *ReviewConsumer) ConsumeAndProcess(ctx context.Context, workerCount uint) {
-	deliveryChan, err := r.consumer.StartConsuming(ctx, common.REVIEW_QUEUE)
+	deliveryChan, err := r.consumerRepo.StartConsuming(ctx, common.REVIEW_QUEUE)
 	if err != nil {
 		panic(err)
 	}
@@ -77,7 +76,7 @@ func (r *ReviewConsumer) ConsumeAndProcess(ctx context.Context, workerCount uint
 						continue
 					}
 
-					if err := r.reviewScenario.ReviewInterviewPerformance(ctx, reviewMessage.InterviewID); err != nil {
+					if err := r.reviewService.ReviewInterviewPerformance(ctx, reviewMessage.InterviewID); err != nil {
 						r.logger.Error().Err(err).Msg("unable to review interview performance")
 						delivery.Nack(true)
 						continue

@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-	intentclassifier "github.com/ahleongzc/leetcode-live-backend/internal/infra/intent_classifier"
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
@@ -15,19 +15,19 @@ type IntentClassificationRepo interface {
 }
 
 func NewIntentClassificationRepo(
-	intentClassifier intentclassifier.IntentClassifier,
+	fastTextPool fasttext.FastTextPool,
 ) IntentClassificationRepo {
 	return &IntentClassificationRepoImpl{
-		intentClassifier: intentClassifier,
+		fastTextPool: fastTextPool,
 	}
 }
 
 type IntentClassificationRepoImpl struct {
-	intentClassifier intentclassifier.IntentClassifier
+	fastTextPool fasttext.FastTextPool
 }
 
 func (i *IntentClassificationRepoImpl) ClassifyIntent(ctx context.Context, word string) (*model.Intent, error) {
-	result, err := i.intentClassifier.Classify(ctx, word)
+	result, err := i.fastTextPool.Classify(ctx, word)
 	if err != nil {
 		return nil, err
 	}

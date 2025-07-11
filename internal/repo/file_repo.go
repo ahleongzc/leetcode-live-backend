@@ -16,7 +16,6 @@ type FileRepo interface {
 	Upload(ctx context.Context, name string, content io.Reader, metadata map[string]any) (string, error)
 }
 
-// TODO: Move the client to an interface
 func NewFileRepo(
 	client *s3.Client,
 	objectStorageConfig *config.ObjectStorageConfig,

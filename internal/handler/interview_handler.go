@@ -7,7 +7,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 

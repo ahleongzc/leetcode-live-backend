@@ -8,7 +8,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
-	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
 
 	"gorm.io/gorm"
 )

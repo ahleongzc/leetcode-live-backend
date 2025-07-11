@@ -3,7 +3,7 @@ package background
 import (
 	"context"
 
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 
 	"github.com/rs/zerolog"
 )
@@ -14,19 +14,19 @@ type WorkerPool interface {
 }
 
 func NewWorkerPool(
-	callbackQueue infra.InMemoryCallbackQueue,
+	callbackQueueRepo repo.InMemoryCallbackQueueRepo,
 	logger *zerolog.Logger,
 ) WorkerPool {
 	return &WorkerPoolImpl{
-		callbackQueue: callbackQueue,
-		logger:        logger,
+		callbackQueueRepo: callbackQueueRepo,
+		logger:            logger,
 	}
 }
 
 type WorkerPoolImpl struct {
-	callbackQueue infra.InMemoryCallbackQueue
-	size          uint
-	logger        *zerolog.Logger
+	callbackQueueRepo repo.InMemoryCallbackQueueRepo
+	size              uint
+	logger            *zerolog.Logger
 }
 
 func (w *WorkerPoolImpl) Init(size uint) {
@@ -59,7 +59,7 @@ func (w *WorkerPoolImpl) processCallback(workerID uint) {
 		}
 	}()
 
-	fn := w.callbackQueue.Dequeue()
+	fn := w.callbackQueueRepo.Dequeue()
 	if fn == nil {
 		return
 	}

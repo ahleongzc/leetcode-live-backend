@@ -2,14 +2,15 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
-	"github.com/ahleongzc/leetcode-live-backend/internal/model"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
-	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
@@ -23,39 +24,52 @@ type InterviewService interface {
 	SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error)
 	GetUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
 	AbandonUnfinishedInterview(ctx context.Context, userID uint) error
+	PrepareToListen(ctx context.Context, interviewID uint) error
 }
 
 func NewInterviewService(
-	interviewScenario scenario.InterviewScenario,
-	reviewScenario scenario.ReviewScenario,
-	authScenario scenario.AuthScenario,
-	questionScenario scenario.QuestionScenario,
-	transcriptManager scenario.TranscriptManager,
-	interviewRepo repo.InterviewRepo,
+	authService AuthService,
+	reviewService ReviewService,
+	questionService QuestionService,
+	transcriptManager TranscriptManager,
+	ttsRepo repo.TTSRepo,
+	llmRepo repo.LLMRepo,
+	fileRepo repo.FileRepo,
 	reviewRepo repo.ReviewRepo,
 	questionRepo repo.QuestionRepo,
+	interviewRepo repo.InterviewRepo,
+	messageQueueRepo repo.MessageQueueProducerRepo,
+	intentClassificationRepo repo.IntentClassificationRepo,
 ) InterviewService {
 	return &InterviewServiceImpl{
-		questionScenario:  questionScenario,
-		reviewScenario:    reviewScenario,
-		interviewScenario: interviewScenario,
-		authScenario:      authScenario,
-		transcriptManager: transcriptManager,
-		interviewRepo:     interviewRepo,
-		reviewRepo:        reviewRepo,
-		questionRepo:      questionRepo,
+		authService:              authService,
+		reviewService:            reviewService,
+		questionService:          questionService,
+		transcriptManager:        transcriptManager,
+		intentClassificationRepo: intentClassificationRepo,
+		messageQueueRepo:         messageQueueRepo,
+		interviewRepo:            interviewRepo,
+		questionRepo:             questionRepo,
+		reviewRepo:               reviewRepo,
+		fileRepo:                 fileRepo,
+		ttsRepo:                  ttsRepo,
+		llmRepo:                  llmRepo,
 	}
 }
 
 type InterviewServiceImpl struct {
-	interviewScenario scenario.InterviewScenario
-	reviewScenario    scenario.ReviewScenario
-	authScenario      scenario.AuthScenario
-	questionScenario  scenario.QuestionScenario
-	transcriptManager scenario.TranscriptManager
-	interviewRepo     repo.InterviewRepo
-	reviewRepo        repo.ReviewRepo
-	questionRepo      repo.QuestionRepo
+	authService              AuthService
+	reviewService            ReviewService
+	questionService          QuestionService
+	transcriptManager        TranscriptManager
+	intentClassificationRepo repo.IntentClassificationRepo
+	messageQueueRepo         repo.MessageQueueProducerRepo
+	interviewRepo            repo.InterviewRepo
+	questionRepo             repo.QuestionRepo
+	reviewRepo               repo.ReviewRepo
+	fileRepo                 repo.FileRepo
+	ttsRepo                  repo.TTSRepo
+	llmRepo                  repo.LLMRepo
 }
 
 // AbandonOngoingInterview implements InterviewService.
@@ -82,7 +96,7 @@ func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, u
 		return err
 	}
 
-	if err := i.reviewScenario.HandleAbandonedInterview(ctx, interview.ID); err != nil {
+	if err := i.reviewService.HandleAbandonedInterview(ctx, interview.ID); err != nil {
 		return err
 	}
 
@@ -197,7 +211,7 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 }
 
 func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error) {
-	questionID, err := i.questionScenario.GetOrCreateQuestion(ctx, externalQuestionID, description)
+	questionID, err := i.questionService.GetOrCreateQuestion(ctx, externalQuestionID, description)
 	if err != nil {
 		return "", err
 	}
@@ -225,7 +239,7 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return freshToken, nil
 	}
 
-	token := i.authScenario.GenerateRandomToken()
+	token := i.authService.GenerateRandomToken()
 
 	questionCount, err := i.interviewRepo.CountByUserIDAndQuestionID(ctx, userID, questionID)
 	if err != nil {
@@ -245,7 +259,7 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return "", err
 	}
 
-	if err := i.interviewScenario.PrepareToListen(ctx, id); err != nil {
+	if err := i.PrepareToListen(ctx, id); err != nil {
 		return "", nil
 	}
 
@@ -266,7 +280,7 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 		return nil, nil
 	}
 
-	intent, err := i.interviewScenario.ClassifyIntent(ctx, i.transcriptManager.GetSentenceInBuffer(ctx, interviewID))
+	intent, err := i.classifyIntent(ctx, i.transcriptManager.GetSentenceInBuffer(ctx, interviewID))
 	if err != nil {
 		return nil, err
 	}
@@ -290,11 +304,11 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uin
 
 	switch util.FromPtr(intent) {
 	case model.NO_INTENT:
-		return i.interviewScenario.Listen(ctx, interviewID)
+		return i.listen(ctx, interviewID)
 	case model.HINT_REQUEST:
-		return i.interviewScenario.GiveHints(ctx, interviewID)
+		return i.giveHints(ctx, interviewID)
 	case model.END_REQUEST:
-		return i.interviewScenario.EndInterview(ctx, interviewID)
+		return i.endInterview(ctx, interviewID)
 	default:
 		return nil, fmt.Errorf("invalid intent type %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
 	}
@@ -345,7 +359,7 @@ func (i *InterviewServiceImpl) validateInterviewSetUpCount(ctx context.Context, 
 		return "", fmt.Errorf("set up interview attempt exceeded: %w", common.ErrBadRequest)
 	}
 
-	token := i.authScenario.GenerateRandomToken()
+	token := i.authService.GenerateRandomToken()
 	interview.SetUpCount++
 	interview.Token = util.ToPtr(token)
 
@@ -354,4 +368,301 @@ func (i *InterviewServiceImpl) validateInterviewSetUpCount(ctx context.Context, 
 	}
 
 	return token, nil
+}
+
+func (i *InterviewServiceImpl) PrepareToListen(ctx context.Context, interviewID uint) error {
+	description, err := i.getInterviewQuestionDescription(ctx, interviewID)
+	if err != nil {
+		return err
+	}
+
+	initialTranscript := fmt.Sprintf(`
+		You are a senior software engineer conducting a LeetCode-style technical interview with a candidate.
+		You have already prepared the question for the candidate, and the description of the question is as follow:
+		%s
+	`, description)
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, initialTranscript, "", ""); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (i *InterviewServiceImpl) getInterviewQuestionDescription(ctx context.Context, interviewID uint) (string, error) {
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return "", err
+	}
+
+	question, err := i.questionRepo.GetByID(ctx, interview.QuestionID)
+	if err != nil {
+		return "", err
+	}
+
+	return question.Description, nil
+}
+
+// ListenToCandidate implements InterviewScenario.
+func (i *InterviewServiceImpl) listen(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+	return nil, nil
+}
+
+// CandidateAsksForClarification implements InterviewScenario.
+func (i *InterviewServiceImpl) clarify(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+	err := i.transcriptManager.Flush(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	llmMessages := make([]*model.LLMMessage, 0)
+	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, transcript := range history {
+		llmMessages = append(llmMessages, transcript.ToLLMMessage())
+	}
+
+	llmMessages = append(llmMessages, &model.LLMMessage{
+		Role: model.SYSTEM,
+		Content: `
+			You are now tasked to answer clarifying questions from the candidate in a way that helps them better understand the problem without giving away the solution.
+			Be clear, concise, and professional — just like you would be in a real interview.
+			Provide only as much information as needed to address their question directly.
+			Avoid adding extra hints or restating parts of the problem unless it's necessary for clarification.
+			If the candidate asks about constraints, edge cases, or assumptions, answer truthfully and succinctly.
+			Keep your tone supportive but neutral — you're here to evaluate and guide, not to teach.
+		`,
+	})
+
+	req := &model.ChatCompletionsRequest{
+		Messages: llmMessages,
+	}
+
+	resp, err := i.llmRepo.ChatCompletions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	replyToCandidate := resp.GetResponse().GetContent()
+
+	reader, err := i.ttsRepo.TextToSpeechReader(
+		ctx, replyToCandidate, `
+			You are a senior software engineer conducting a LeetCode-style technical interview. 
+			Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+			Pause briefly between key points. 
+			Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.
+		`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url, entity.ASSISTANT); err != nil {
+		return nil, err
+	}
+
+	return &model.WebSocketMessage{
+		From: model.SERVER,
+		URL:  util.ToPtr(url),
+	}, nil
+}
+
+// CandidateAsksForHints implements InterviewScenario.
+func (i *InterviewServiceImpl) giveHints(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+	err := i.transcriptManager.Flush(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	llmMessages := make([]*model.LLMMessage, 0)
+	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	llmMessages = append(llmMessages, &model.LLMMessage{
+		Role: model.SYSTEM,
+		Content: `
+			You are a senior software engineer conducting a LeetCode-style technical interview. 
+			Your task is to provide concise, high-quality hints to help the candidate move forward based on the question they're currently solving and the history of their previous questions or messages. 
+			Do not give the full solution. 
+			Tailor your hints to their level of understanding and avoid repeating information they've already figured out. 
+			If the candidate appears confused or stuck, offer a nudge in the right direction without revealing the answer.
+			Keep your hints short and simple, and reply like how you would in a real life interview.
+		`,
+	})
+
+	for _, transcript := range history {
+		llmMessages = append(llmMessages, transcript.ToLLMMessage())
+	}
+
+	req := &model.ChatCompletionsRequest{
+		Messages: llmMessages,
+	}
+
+	resp, err := i.llmRepo.ChatCompletions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	replyToCandidate := resp.GetResponse().GetContent()
+
+	reader, err := i.ttsRepo.TextToSpeechReader(
+		ctx,
+		replyToCandidate,
+		`You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+		Pause briefly between key points. 
+		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url, entity.ASSISTANT); err != nil {
+		return nil, err
+	}
+
+	return &model.WebSocketMessage{
+		From: model.SERVER,
+		URL:  util.ToPtr(url),
+	}, nil
+}
+
+// CandidateWantsToEnd implements InterviewScenario.
+func (i *InterviewServiceImpl) endInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+	err := i.transcriptManager.Flush(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	interview.EndTimestampMS = util.ToPtr(time.Now().UnixMilli())
+	if err = i.interviewRepo.Update(ctx, interview); err != nil {
+		return nil, err
+	}
+
+	endingTranscript := "Hey thanks for joining this interview, I hope you had fun"
+	reader, err := i.ttsRepo.TextToSpeechReader(
+		ctx,
+		endingTranscript,
+		`
+		You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+		Pause briefly between key points. 
+		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	reviewMessage, err := json.Marshal(&model.ReviewMessage{InterviewID: interviewID})
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal before passing into message queue for review, %s: %w", err, common.ErrInternalServerError)
+	}
+
+	if err := i.messageQueueRepo.Push(ctx, reviewMessage, common.REVIEW_QUEUE); err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url, entity.ASSISTANT); err != nil {
+		return nil, err
+	}
+
+	return &model.WebSocketMessage{
+		From:      model.SERVER,
+		URL:       util.ToPtr(url),
+		CloseConn: true,
+	}, nil
+}
+
+func (i *InterviewServiceImpl) abandonInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+	err := i.transcriptManager.Flush(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	interview.End()
+
+	if err = i.interviewRepo.Update(ctx, interview); err != nil {
+		return nil, err
+	}
+
+	endingTranscript := "Hey thanks for joining this interview, I hope you had fun"
+	reader, err := i.ttsRepo.TextToSpeechReader(
+		ctx,
+		endingTranscript,
+		`
+		You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+		Pause briefly between key points. 
+		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	reviewMessage, err := json.Marshal(&model.ReviewMessage{InterviewID: interviewID})
+	if err != nil {
+		return nil, fmt.Errorf("unable to marshal before passing into message queue for review, %s: %w", err, common.ErrInternalServerError)
+	}
+
+	if err := i.messageQueueRepo.Push(ctx, reviewMessage, common.REVIEW_QUEUE); err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url, entity.ASSISTANT); err != nil {
+		return nil, err
+	}
+
+	return &model.WebSocketMessage{
+		From:      model.SERVER,
+		URL:       util.ToPtr(url),
+		CloseConn: true,
+	}, nil
+}
+
+func (i *InterviewServiceImpl) classifyIntent(ctx context.Context, sentence string) (*model.Intent, error) {
+	intent, err := i.intentClassificationRepo.ClassifyIntent(ctx, sentence)
+	if err != nil {
+		return nil, err
+	}
+
+	return intent, nil
 }

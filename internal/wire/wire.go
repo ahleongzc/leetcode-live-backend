@@ -9,14 +9,13 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
-	intentclassifier "github.com/ahleongzc/leetcode-live-backend/internal/infra/intent_classifier"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
-	messagequeue "github.com/ahleongzc/leetcode-live-backend/internal/infra/message_queue"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra/tts"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
-	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/http"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/postgres"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/zerolog"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 
 	"github.com/google/wire"
@@ -37,13 +36,9 @@ func InitializeApplication() (*app.Application, error) {
 		service.NewUserService,
 		service.NewAuthService,
 		service.NewInterviewService,
-
-		// Scenario
-		scenario.NewAuthScenario,
-		scenario.NewQuestionScenario,
-		scenario.NewInterviewScenario,
-		scenario.NewTranscriptManager,
-		scenario.NewReviewScenario,
+		service.NewQuestionService,
+		service.NewReviewService,
+		service.NewTranscriptManager,
 
 		// Repo
 		repo.NewReviewRepo,
@@ -53,23 +48,25 @@ func InitializeApplication() (*app.Application, error) {
 		repo.NewInterviewRepo,
 		repo.NewTranscriptRepo,
 		repo.NewFileRepo,
+		repo.NewLLMRepo,
+		repo.NewTTSRepo,
+		repo.NewInMemoryCallbackQueueRepo,
 		repo.NewIntentClassificationRepo,
 
-		// Infra
-		tts.NewTTS,
-		llm.NewLLM,
-		intentclassifier.NewIntentClassifier,
+		// HTTP
+		http.NewHTTPCLient,
 
-		infra.NewPostgresDatabase,
-		infra.NewZerologLogger,
-		infra.NewCloudflareR2ObjectStorageClient,
-		infra.NewInMemoryCallbackQueue,
-		infra.NewHTTPCLient,
-		wire.NewSet(
-			messagequeue.NewMessageQueue,
-			wire.Bind(new(messagequeue.MessageQueueProducer), new(messagequeue.MessageQueue)),
-			wire.Bind(new(messagequeue.MessageQueueConsumer), new(messagequeue.MessageQueue)),
-		),
+		// Fasttext
+		fasttext.NewFastTextPool,
+
+		// Postgres
+		postgres.NewPostgresDatabase,
+
+		// Zerolog
+		zerolog.NewZerologLogger,
+
+		// Cloudflare
+		cloudflare.NewCloudflareR2ObjectStorageClient,
 
 		// Config
 		config.LoadLLMConfig,
@@ -79,7 +76,13 @@ func InitializeApplication() (*app.Application, error) {
 		config.LoadWebsocketConfig,
 		config.LoadInMemoryQueueConfig,
 		config.LoadMessageQueueConfig,
-		config.LoadIntentClassifierConfig,
+		config.LoadIntentClassificationConfig,
+
+		wire.NewSet(
+			repo.NewMessageQueueRepo,
+			wire.Bind(new(repo.MessageQueueProducerRepo), new(repo.MessageQueueRepo)),
+			wire.Bind(new(repo.MessageQueueConsumerRepo), new(repo.MessageQueueRepo)),
+		),
 
 		// Middleware
 		middleware.NewMiddleware,

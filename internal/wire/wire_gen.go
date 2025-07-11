@@ -12,32 +12,30 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra/intent_classifier"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra/llm"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra/message_queue"
-	"github.com/ahleongzc/leetcode-live-backend/internal/infra/tts"
 	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
-	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/http"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/postgres"
+	"github.com/ahleongzc/leetcode-live-backend/internal/repo/zerolog"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 )
 
 // Injectors from wire.go:
 
 func InitializeApplication() (*app.Application, error) {
-	authScenario := scenario.NewAuthScenario()
 	databaseConfig, err := config.LoadDatabaseConfig()
 	if err != nil {
 		return nil, err
 	}
-	db, err := infra.NewPostgresDatabase(databaseConfig)
+	db, err := postgres.NewPostgresDatabase(databaseConfig)
 	if err != nil {
 		return nil, err
 	}
 	sessionRepo := repo.NewSessionRepo(db)
 	userRepo := repo.NewUserRepo(db)
-	authService := service.NewAuthService(authScenario, sessionRepo, userRepo)
+	authService := service.NewAuthService(sessionRepo, userRepo)
 	authHandler := handler.NewAuthHandler(authService)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
@@ -46,63 +44,62 @@ func InitializeApplication() (*app.Application, error) {
 	reviewRepo := repo.NewReviewRepo(db)
 	interviewRepo := repo.NewInterviewRepo(db)
 	transcriptRepo := repo.NewTranscriptRepo(db)
-	transcriptManager := scenario.NewTranscriptManager(transcriptRepo)
+	transcriptManager := service.NewTranscriptManager(transcriptRepo)
 	llmConfig, err := config.LoadLLMConfig()
 	if err != nil {
 		return nil, err
 	}
-	client := infra.NewHTTPCLient()
-	llmLLM, err := llm.NewLLM(llmConfig, client)
+	client := http.NewHTTPCLient()
+	llmRepo, err := repo.NewLLMRepo(llmConfig, client)
 	if err != nil {
 		return nil, err
 	}
-	reviewScenario := scenario.NewReviewScenario(reviewRepo, interviewRepo, transcriptManager, llmLLM)
+	reviewService := service.NewReviewService(reviewRepo, interviewRepo, transcriptManager, llmRepo)
 	questionRepo := repo.NewQuestionRepo(db)
-	objectStorageConfig, err := config.LoadObjectStorageConfig()
-	if err != nil {
-		return nil, err
-	}
-	s3Client, err := infra.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
-	if err != nil {
-		return nil, err
-	}
-	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
-	intentClassifierConfig, err := config.LoadIntentClassifierConfig()
-	if err != nil {
-		return nil, err
-	}
-	intentClassifier, err := intentclassifier.NewIntentClassifier(intentClassifierConfig)
-	if err != nil {
-		return nil, err
-	}
-	intentClassificationRepo := repo.NewIntentClassificationRepo(intentClassifier)
-	messageQueueConfig, err := config.LoadMessageQueueConfig()
-	if err != nil {
-		return nil, err
-	}
-	messageQueue := messagequeue.NewMessageQueue(messageQueueConfig)
+	questionService := service.NewQuestionService(questionRepo)
 	ttsConfig, err := config.LoadTTSConfig()
 	if err != nil {
 		return nil, err
 	}
-	ttsTTS, err := tts.NewTTS(ttsConfig, client)
+	ttsRepo, err := repo.NewTTSRepo(ttsConfig, client)
 	if err != nil {
 		return nil, err
 	}
-	interviewScenario := scenario.NewInterviewScenario(reviewScenario, transcriptManager, questionRepo, interviewRepo, fileRepo, intentClassificationRepo, messageQueue, llmLLM, ttsTTS)
-	questionScenario := scenario.NewQuestionScenario(questionRepo)
-	interviewService := service.NewInterviewService(interviewScenario, reviewScenario, authScenario, questionScenario, transcriptManager, interviewRepo, reviewRepo, questionRepo)
-	logger := infra.NewZerologLogger()
+	objectStorageConfig, err := config.LoadObjectStorageConfig()
+	if err != nil {
+		return nil, err
+	}
+	s3Client, err := cloudflare.NewCloudflareR2ObjectStorageClient(objectStorageConfig)
+	if err != nil {
+		return nil, err
+	}
+	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
+	messageQueueConfig, err := config.LoadMessageQueueConfig()
+	if err != nil {
+		return nil, err
+	}
+	messageQueueRepo := repo.NewMessageQueueRepo(messageQueueConfig)
+	intentClassificationConfig, err := config.LoadIntentClassificationConfig()
+	if err != nil {
+		return nil, err
+	}
+	fastTextPool, err := fasttext.NewFastTextPool(intentClassificationConfig)
+	if err != nil {
+		return nil, err
+	}
+	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
+	interviewService := service.NewInterviewService(authService, reviewService, questionService, transcriptManager, ttsRepo, llmRepo, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
+	logger := zerolog.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
-	reviewConsumer := consumer.NewReviewConsumer(reviewScenario, messageQueue, logger)
+	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
 	if err != nil {
 		return nil, err
 	}
-	inMemoryCallbackQueue := infra.NewInMemoryCallbackQueue(inMemoryQueueConfig)
-	workerPool := background.NewWorkerPool(inMemoryCallbackQueue, logger)
+	inMemoryCallbackQueueRepo := repo.NewInMemoryCallbackQueueRepo(inMemoryQueueConfig)
+	workerPool := background.NewWorkerPool(inMemoryCallbackQueueRepo, logger)
 	application := app.NewApplication(authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, reviewConsumer, houseKeeper, workerPool)
 	return application, nil
 }

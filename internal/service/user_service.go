@@ -7,7 +7,7 @@ import (
 	"regexp"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 
 	"golang.org/x/crypto/bcrypt"

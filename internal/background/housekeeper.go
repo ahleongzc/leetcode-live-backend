@@ -52,7 +52,7 @@ func (h *HousekeeperImpl) deleteExpiredSession(ctx context.Context) {
 	if err != nil {
 		h.logger.Error().
 			Err(err).
-			Dur("duration", duration).
+			Dur("duration", time.Duration(duration.Seconds())).
 			Msg("failed to delete expired sessions")
 		return
 	}
@@ -63,6 +63,6 @@ func (h *HousekeeperImpl) deleteExpiredSession(ctx context.Context) {
 
 	h.logger.Info().
 		Int("sessionDeleted", int(deletedCount)).
-		Dur("duration", duration).
+		Dur("duration", time.Duration(duration.Seconds())).
 		Msg("deleted expired session successfully")
 }

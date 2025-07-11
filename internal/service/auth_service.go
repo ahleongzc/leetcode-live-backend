@@ -2,14 +2,16 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-	"github.com/ahleongzc/leetcode-live-backend/internal/entity"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
-	"github.com/ahleongzc/leetcode-live-backend/internal/scenario"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
+	"github.com/google/uuid"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -17,28 +19,34 @@ import (
 type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
 	Logout(ctx context.Context, token string) error
-
+	GenerateRandomToken() string
 	// These two functions are only called by middleware
 	ValidateAndRefreshSessionToken(ctx context.Context, token string) (string, error)
 	GetUserIDFromSessionToken(ctx context.Context, token string) (uint, error)
 }
 
 func NewAuthService(
-	authScenario scenario.AuthScenario,
 	sessionRepo repo.SessionRepo,
 	userRepo repo.UserRepo,
 ) AuthService {
 	return &AuthServiceImpl{
-		authScenario: authScenario,
-		sessionRepo:  sessionRepo,
-		userRepo:     userRepo,
+		sessionRepo: sessionRepo,
+		userRepo:    userRepo,
 	}
 }
 
 type AuthServiceImpl struct {
-	authScenario scenario.AuthScenario
-	sessionRepo  repo.SessionRepo
-	userRepo     repo.UserRepo
+	sessionRepo repo.SessionRepo
+	userRepo    repo.UserRepo
+}
+
+func (a *AuthServiceImpl) GenerateRandomToken() string {
+	b := make([]byte, 32)
+	_, err := rand.Read(b)
+	if err != nil {
+		return uuid.NewString()
+	}
+	return base64.RawURLEncoding.EncodeToString(b)
 }
 
 // GetUserIDFromSessionToken implements AuthService.
@@ -115,7 +123,7 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 	}
 
 	session := &entity.Session{
-		Token:             a.authScenario.GenerateRandomToken(),
+		Token:             a.GenerateRandomToken(),
 		UserID:            user.ID,
 		ExpireTimestampMS: time.Now().Add(48 * time.Hour).UnixMilli(),
 	}
