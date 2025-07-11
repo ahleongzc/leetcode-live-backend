@@ -14,12 +14,13 @@ import (
 type InterviewRepo interface {
 	Create(ctx context.Context, interview *entity.Interview) (uint, error)
 	Update(ctx context.Context, interview *entity.Interview) error
-	ListStartedInterviewsByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error)
 	GetByToken(ctx context.Context, token string) (*entity.Interview, error)
 	GetByID(ctx context.Context, id uint) (*entity.Interview, error)
 	GetUnfinishedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
-	CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error)
 	GetUnstartedInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
+	GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error)
+	CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error)
+	ListStartedInterviewsByUserID(ctx context.Context, userID, limit, offset uint) ([]*entity.Interview, uint, error)
 }
 
 func NewInterviewRepo(
@@ -32,6 +33,24 @@ func NewInterviewRepo(
 
 type InterviewRepoImpl struct {
 	db *gorm.DB
+}
+
+// GetOngoingInterviewByUserID implements InterviewRepo.
+func (i *InterviewRepoImpl) GetOngoingInterviewByUserID(ctx context.Context, userID uint) (*entity.Interview, error) {
+	ctx, cancel := context.WithTimeout(ctx, config.DB_QUERY_TIMEOUT)
+	defer cancel()
+
+	interview := &entity.Interview{}
+	if err := i.db.WithContext(ctx).
+		Where("user_id = ? AND ongoing IS true", userID).
+		First(interview).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+		}
+		return nil, fmt.Errorf("unable to get unstarted interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
+	}
+
+	return interview, nil
 }
 
 func (i *InterviewRepoImpl) CountByUserIDAndQuestionID(ctx context.Context, userID, questionID uint) (uint, error) {

@@ -36,6 +36,26 @@ func NewInterviewHandler(
 	}
 }
 
+func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := util.GetUserID(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	ongoingInterview, err := i.interviewService.GetOngoingInterview(ctx, userID)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	payload := util.NewJSONPayload()
+	payload.Add("data", ongoingInterview)
+
+	WriteJSONHTTP(w, payload, http.StatusOK, nil)
+}
+
 func (i *InterviewHandler) AbandonUnfinishedInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userId, err := util.GetUserID(ctx)
@@ -182,6 +202,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	case <-closeChan:
 		conn.Close(websocket.StatusNormalClosure, "interview ended")
 	case err := <-errChan:
+		i.interviewService.PauseOngoingInterview(ctx, interviewID)
 		HandleErrorResponeWebsocket(ctx, conn, err)
 		cancel()
 	}

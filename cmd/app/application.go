@@ -27,10 +27,10 @@ type Application struct {
 func NewApplication(
 	authHandler *handler.AuthHandler,
 	userHandler *handler.UserHandler,
-	healthHandler *handler.HealthHandler,
-	interviewHandler *handler.InterviewHandler,
 	middleware *middleware.Middleware,
+	healthHandler *handler.HealthHandler,
 	reviewConsumer *consumer.ReviewConsumer,
+	interviewHandler *handler.InterviewHandler,
 	housekeeper background.HouseKeeper,
 	workerPool background.WorkerPool,
 ) *Application {
@@ -65,8 +65,9 @@ func (a *Application) Handler() http.Handler {
 	mux.Handle("POST /v1/interview/set-up-unfinished", protected.ThenFunc(a.interviewHandler.SetUpUnfinishedInterview))
 	mux.Handle("POST /v1/interview/abandon-unfinished", protected.ThenFunc(a.interviewHandler.AbandonUnfinishedInterview))
 
-	mux.Handle("GET /v1/interview/unfinished", protected.ThenFunc(a.interviewHandler.GetUnfinishedInterview))
+	mux.Handle("GET /v1/interview/ongoing", protected.ThenFunc(a.interviewHandler.GetOngoingInterview))
 	mux.Handle("GET /v1/interview/history", protected.ThenFunc(a.interviewHandler.GetInterviewHistory))
+	mux.Handle("GET /v1/interview/unfinished", protected.ThenFunc(a.interviewHandler.GetUnfinishedInterview))
 	// ---
 
 	return alice.New(

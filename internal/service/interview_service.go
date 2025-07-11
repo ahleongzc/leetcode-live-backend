@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
@@ -21,10 +20,12 @@ type InterviewService interface {
 	ConsumeTokenAndStartInterview(ctx context.Context, token string) (uint, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
 	SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
-	SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error)
-	GetUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
-	AbandonUnfinishedInterview(ctx context.Context, userID uint) error
 	PrepareToListen(ctx context.Context, interviewID uint) error
+	PauseOngoingInterview(ctx context.Context, interviewID uint) error
+	AbandonUnfinishedInterview(ctx context.Context, userID uint) error
+	SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error)
+	GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
+	GetUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
 }
 
 func NewInterviewService(
@@ -46,14 +47,14 @@ func NewInterviewService(
 		reviewService:            reviewService,
 		questionService:          questionService,
 		transcriptManager:        transcriptManager,
-		intentClassificationRepo: intentClassificationRepo,
-		messageQueueRepo:         messageQueueRepo,
-		interviewRepo:            interviewRepo,
-		questionRepo:             questionRepo,
-		reviewRepo:               reviewRepo,
-		fileRepo:                 fileRepo,
 		ttsRepo:                  ttsRepo,
 		llmRepo:                  llmRepo,
+		fileRepo:                 fileRepo,
+		reviewRepo:               reviewRepo,
+		questionRepo:             questionRepo,
+		interviewRepo:            interviewRepo,
+		messageQueueRepo:         messageQueueRepo,
+		intentClassificationRepo: intentClassificationRepo,
 	}
 }
 
@@ -62,14 +63,50 @@ type InterviewServiceImpl struct {
 	reviewService            ReviewService
 	questionService          QuestionService
 	transcriptManager        TranscriptManager
-	intentClassificationRepo repo.IntentClassificationRepo
-	messageQueueRepo         repo.MessageQueueProducerRepo
-	interviewRepo            repo.InterviewRepo
-	questionRepo             repo.QuestionRepo
-	reviewRepo               repo.ReviewRepo
-	fileRepo                 repo.FileRepo
 	ttsRepo                  repo.TTSRepo
 	llmRepo                  repo.LLMRepo
+	fileRepo                 repo.FileRepo
+	reviewRepo               repo.ReviewRepo
+	questionRepo             repo.QuestionRepo
+	interviewRepo            repo.InterviewRepo
+	intentClassificationRepo repo.IntentClassificationRepo
+	messageQueueRepo         repo.MessageQueueProducerRepo
+}
+
+// PauseOngoingInterview implements InterviewService.
+func (i *InterviewServiceImpl) PauseOngoingInterview(ctx context.Context, interviewID uint) error {
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+		}
+		return err
+	}
+
+	interview.Pause()
+	if err := i.interviewRepo.Update(ctx, interview); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// GetOngoingInterview implements InterviewService.
+func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
+	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	if err != nil {
+		if errors.Is(err, common.ErrNotFound) {
+			return nil, fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+		}
+		return nil, err
+	}
+
+	interviewModel, err := i.convertInterviewEntityToModel(ctx, interview, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return interviewModel, nil
 }
 
 // AbandonOngoingInterview implements InterviewService.
@@ -146,6 +183,65 @@ func (i *InterviewServiceImpl) GetUnfinishedInterview(ctx context.Context, userI
 	return interviewModel, nil
 }
 
+func (i *InterviewServiceImpl) getQuestionFromQuestionCacheOrRepo(ctx context.Context, questionID uint, questionCache map[uint]*entity.Question) (*entity.Question, error) {
+	if questionCache == nil {
+		question, err := i.questionRepo.GetByID(ctx, questionID)
+		if err != nil {
+			return nil, err
+		}
+		return question, nil
+	}
+
+	if _, ok := questionCache[questionID]; !ok {
+		question, err := i.questionRepo.GetByID(ctx, questionID)
+		if err != nil {
+			return nil, err
+		}
+		questionCache[questionID] = question
+	}
+
+	question, ok := questionCache[questionID]
+	if !ok {
+		return nil, fmt.Errorf("unable to retrieve question information from cache: %w", common.ErrInternalServerError)
+	}
+
+	return question, nil
+}
+
+func (i *InterviewServiceImpl) convertInterviewEntityToModel(ctx context.Context, interview *entity.Interview, questionCache map[uint]*entity.Question) (*model.Interview, error) {
+	interviewModel := &model.Interview{
+		ID:                    interview.UUID,
+		QuestionAttemptNumber: interview.QuestionAttemptNumber,
+	}
+
+	review, err := i.reviewRepo.GetByID(ctx, interview.GetReviewID())
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
+		return nil, err
+	}
+
+	if review != nil {
+		interviewModel.Feedback = util.ToPtr(review.Feedback)
+		interviewModel.Score = util.ToPtr(review.Score)
+		interviewModel.Passed = util.ToPtr(review.Passed)
+	}
+
+	question, err := i.getQuestionFromQuestionCacheOrRepo(ctx, interview.QuestionID, questionCache)
+	if err != nil {
+		return nil, err
+	}
+	interviewModel.Question = question.ExternalID
+
+	if interview.StartTimestampMS != nil {
+		interviewModel.StartTimestampS = util.ToPtr(interview.GetStartTimesampS())
+	}
+
+	if interview.EndTimestampMS != nil {
+		interviewModel.EndTimestampS = util.ToPtr(interview.GetEndTimestampS())
+	}
+
+	return interviewModel, nil
+}
+
 // GetHistory implements InterviewService.
 func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error) {
 	interviews, total, err := i.interviewRepo.ListStartedInterviewsByUserID(ctx, userID, limit, offset)
@@ -158,45 +254,10 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 	questionCache := make(map[uint]*entity.Question)
 
 	for _, interview := range interviews {
-		interviewModel := &model.Interview{
-			ID:                    interview.UUID,
-			QuestionAttemptNumber: interview.QuestionAttemptNumber,
-		}
-
-		review, err := i.reviewRepo.GetByID(ctx, interview.GetReviewID())
-		if err != nil && !errors.Is(err, common.ErrNotFound) {
+		interviewModel, err := i.convertInterviewEntityToModel(ctx, interview, questionCache)
+		if err != nil {
 			return nil, nil, err
 		}
-
-		if review != nil {
-			interviewModel.Feedback = util.ToPtr(review.Feedback)
-			interviewModel.Score = util.ToPtr(review.Score)
-			interviewModel.Passed = util.ToPtr(review.Passed)
-		}
-
-		if _, ok := questionCache[interview.QuestionID]; !ok {
-			question, err := i.questionRepo.GetByID(ctx, interview.QuestionID)
-			if err != nil {
-				return nil, nil, err
-			}
-			questionCache[interview.QuestionID] = question
-		}
-
-		question, ok := questionCache[interview.QuestionID]
-		if !ok {
-			return nil, nil, fmt.Errorf("unable to retrieve question information from cache: %w", common.ErrInternalServerError)
-		}
-
-		interviewModel.Question = question.ExternalID
-
-		if interview.StartTimestampMS != nil {
-			interviewModel.StartTimestampS = util.ToPtr(interview.GetStartTimesampS())
-		}
-
-		if interview.EndTimestampMS != nil {
-			interviewModel.EndTimestampS = util.ToPtr(interview.GetEndTimestampS())
-		}
-
 		result = append(result, interviewModel)
 	}
 
@@ -298,6 +359,8 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 }
 
 func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *model.Intent) (*model.WebSocketMessage, error) {
+	fmt.Println("the intent is", util.FromPtr(intent))
+
 	if intent == nil {
 		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
 	}
@@ -309,6 +372,8 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uin
 		return i.giveHints(ctx, interviewID)
 	case model.END_REQUEST:
 		return i.endInterview(ctx, interviewID)
+	case model.CLARIFICATION_REQUEST:
+		return i.clarify(ctx, interviewID)
 	default:
 		return nil, fmt.Errorf("invalid intent type %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
 	}
@@ -335,7 +400,12 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 	}
 
 	interview.ConsumeToken()
-	interview.Start()
+
+	if !interview.HasStarted() {
+		interview.Start()
+	}
+
+	interview.SetOngoing()
 	interview.ReviewID = util.ToPtr(reviewID)
 
 	err = i.interviewRepo.Update(ctx, interview)
@@ -556,64 +626,7 @@ func (i *InterviewServiceImpl) endInterview(ctx context.Context, interviewID uin
 		return nil, err
 	}
 
-	interview.EndTimestampMS = util.ToPtr(time.Now().UnixMilli())
-	if err = i.interviewRepo.Update(ctx, interview); err != nil {
-		return nil, err
-	}
-
-	endingTranscript := "Hey thanks for joining this interview, I hope you had fun"
-	reader, err := i.ttsRepo.TextToSpeechReader(
-		ctx,
-		endingTranscript,
-		`
-		You are a senior software engineer conducting a LeetCode-style technical interview. 
-		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
-		Pause briefly between key points. 
-		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	reviewMessage, err := json.Marshal(&model.ReviewMessage{InterviewID: interviewID})
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal before passing into message queue for review, %s: %w", err, common.ErrInternalServerError)
-	}
-
-	if err := i.messageQueueRepo.Push(ctx, reviewMessage, common.REVIEW_QUEUE); err != nil {
-		return nil, err
-	}
-
-	// TODO: Make the file name follow a structure
-	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url, entity.ASSISTANT); err != nil {
-		return nil, err
-	}
-
-	return &model.WebSocketMessage{
-		From:      model.SERVER,
-		URL:       util.ToPtr(url),
-		CloseConn: true,
-	}, nil
-}
-
-func (i *InterviewServiceImpl) abandonInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
-	err := i.transcriptManager.Flush(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
-	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
 	interview.End()
-
 	if err = i.interviewRepo.Update(ctx, interview); err != nil {
 		return nil, err
 	}

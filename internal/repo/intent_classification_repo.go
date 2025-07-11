@@ -32,8 +32,6 @@ func (i *IntentClassificationRepoImpl) ClassifyIntent(ctx context.Context, word 
 		return nil, err
 	}
 
-	fmt.Println(result)
-
 	switch result {
 	case "nil", "hint", "end":
 		return util.ToPtr(model.Intent(result)), nil

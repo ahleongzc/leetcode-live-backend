@@ -2,6 +2,10 @@
 .PHONY: run build gen vet fmt count train
 
 run: setUpInfra build
+	@if [ ! -f ./bin/model.bin ]; then \
+        echo "model.bin not found. Running training..."; \
+        make train; \
+    fi
 	@air
 
 build: tidy fmt gen
@@ -23,7 +27,7 @@ count:
 	@cloc .
 
 train:
-	@./internal/infra/intent_classifier/fasttext supervised \
+	@./internal/repo/fasttext/fasttext supervised \
 		-input ./training-data/labels.txt \
 		-output ./bin/model \
 		-epoch 100 \
@@ -31,7 +35,7 @@ train:
 		-lr 0.10
 
 testIC:
-	@./internal/infra/intent_classifier/fasttext test \
+	@./internal/repo/fasttext/fasttext test \
 		./bin/model.bin \
 		./training-data/test.txt
 

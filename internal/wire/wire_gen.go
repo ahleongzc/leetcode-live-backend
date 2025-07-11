@@ -39,8 +39,9 @@ func InitializeApplication() (*app.Application, error) {
 	authHandler := handler.NewAuthHandler(authService)
 	userService := service.NewUserService(userRepo)
 	userHandler := handler.NewUserHandler(userService)
+	logger := zerolog.NewZerologLogger()
+	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
 	healthHandler := handler.NewHealthHandler()
-	websocketConfig := config.LoadWebsocketConfig()
 	reviewRepo := repo.NewReviewRepo(db)
 	interviewRepo := repo.NewInterviewRepo(db)
 	transcriptRepo := repo.NewTranscriptRepo(db)
@@ -55,6 +56,13 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	reviewService := service.NewReviewService(reviewRepo, interviewRepo, transcriptManager, llmRepo)
+	messageQueueConfig, err := config.LoadMessageQueueConfig()
+	if err != nil {
+		return nil, err
+	}
+	messageQueueRepo := repo.NewMessageQueueRepo(messageQueueConfig)
+	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
+	websocketConfig := config.LoadWebsocketConfig()
 	questionRepo := repo.NewQuestionRepo(db)
 	questionService := service.NewQuestionService(questionRepo)
 	ttsConfig, err := config.LoadTTSConfig()
@@ -74,11 +82,6 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
-	messageQueueConfig, err := config.LoadMessageQueueConfig()
-	if err != nil {
-		return nil, err
-	}
-	messageQueueRepo := repo.NewMessageQueueRepo(messageQueueConfig)
 	intentClassificationConfig, err := config.LoadIntentClassificationConfig()
 	if err != nil {
 		return nil, err
@@ -89,10 +92,7 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
 	interviewService := service.NewInterviewService(authService, reviewService, questionService, transcriptManager, ttsRepo, llmRepo, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
-	logger := zerolog.NewZerologLogger()
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
-	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
-	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
 	if err != nil {
@@ -100,6 +100,6 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	inMemoryCallbackQueueRepo := repo.NewInMemoryCallbackQueueRepo(inMemoryQueueConfig)
 	workerPool := background.NewWorkerPool(inMemoryCallbackQueueRepo, logger)
-	application := app.NewApplication(authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, reviewConsumer, houseKeeper, workerPool)
+	application := app.NewApplication(authHandler, userHandler, middlewareMiddleware, healthHandler, reviewConsumer, interviewHandler, houseKeeper, workerPool)
 	return application, nil
 }
