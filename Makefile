@@ -24,7 +24,7 @@ fmt:
 	@go fmt ./...
 
 count:
-	@cloc .
+	@cloc . --exclude-dir=scripts,.venv
 
 train:
 	@cd scripts && python3 clean.py
@@ -35,7 +35,7 @@ train:
 		-dim 100 \
 		-lr 0.10
 
-testIC:
+testModel:
 	@./internal/repo/fasttext/fasttext test \
 		./bin/model.bin \
 		./scripts/test.txt
