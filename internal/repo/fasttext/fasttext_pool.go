@@ -7,12 +7,13 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 )
 
 type FastTextPool interface {
 	Get(ctx context.Context) (*FastTextProcess, error)
 	Put(process *FastTextProcess)
-	Classify(ctx context.Context, text string) (string, error)
+	Classify(ctx context.Context, text string) (*model.IntentDetail, error)
 	Close() error
 }
 
@@ -33,7 +34,7 @@ func NewFastTextPool(
 	}
 
 	for i := 0; i < int(config.PoolSize); i++ {
-		process, err := NewFastTextProcess(config.ModelPath)
+		process, err := NewFastTextProcess(config.ModelPath, config.NumClasses)
 		if err != nil {
 			pool.Close()
 			return nil, err
@@ -64,10 +65,10 @@ func (p *FastTextPoolImpl) Put(process *FastTextProcess) {
 	}
 }
 
-func (p *FastTextPoolImpl) Classify(ctx context.Context, text string) (string, error) {
+func (p *FastTextPoolImpl) Classify(ctx context.Context, text string) (*model.IntentDetail, error) {
 	process, err := p.Get(ctx)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer p.Put(process)
 

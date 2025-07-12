@@ -41,7 +41,7 @@ func (t *TranscriptManagerImpl) GetSentenceInBuffer(ctx context.Context, intervi
 		return ""
 	}
 
-	return buffer.String()
+	return strings.ToLower(strings.TrimSpace(buffer.String()))
 }
 
 // WordsInBuffer implements TranscriptManager.

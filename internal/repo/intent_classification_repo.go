@@ -7,11 +7,11 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
-	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
 type IntentClassificationRepo interface {
-	ClassifyIntent(ctx context.Context, word string) (*model.Intent, error)
+	// Returns the intent and the confidence score
+	ClassifyIntent(ctx context.Context, word string) (*model.IntentDetail, error)
 }
 
 func NewIntentClassificationRepo(
@@ -26,16 +26,19 @@ type IntentClassificationRepoImpl struct {
 	fastTextPool fasttext.FastTextPool
 }
 
-func (i *IntentClassificationRepoImpl) ClassifyIntent(ctx context.Context, word string) (*model.Intent, error) {
-	result, err := i.fastTextPool.Classify(ctx, word)
+func (i *IntentClassificationRepoImpl) ClassifyIntent(ctx context.Context, word string) (*model.IntentDetail, error) {
+	intent, err := i.fastTextPool.Classify(ctx, word)
 	if err != nil {
 		return nil, err
 	}
 
-	switch result {
-	case "nil", "hint", "end":
-		return util.ToPtr(model.Intent(result)), nil
-	default:
-		return nil, fmt.Errorf("invalid intent %s: %w", result, common.ErrInternalServerError)
+	if _, ok := intent.Mapping[model.CANDIDATE_EXPLANATION]; !ok {
+		return nil, fmt.Errorf("missing explanation intent score: %w", common.ErrInternalServerError)
 	}
+
+	if _, ok := intent.Mapping[model.OTHERS]; !ok {
+		return nil, fmt.Errorf("missing others intent score: %w", common.ErrInternalServerError)
+	}
+
+	return intent, nil
 }

@@ -111,3 +111,7 @@ func (i *Interview) GetEndTimestampS() int64 {
 	}
 	return util.MillisToSeconds(util.FromPtr(i.EndTimestampMS))
 }
+
+func (i *Interview) Exists() bool {
+	return i != nil
+}

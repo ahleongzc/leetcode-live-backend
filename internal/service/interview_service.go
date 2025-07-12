@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -93,15 +92,16 @@ func (i *InterviewServiceImpl) PauseOngoingInterview(ctx context.Context, interv
 
 // GetOngoingInterview implements InterviewService.
 func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
-	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
-	if err != nil {
-		if errors.Is(err, common.ErrNotFound) {
-			return nil, fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
-		}
+	ongoingInterview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return nil, err
 	}
 
-	interviewModel, err := i.convertInterviewEntityToModel(ctx, interview, nil)
+	if !ongoingInterview.Exists() {
+		return nil, nil
+	}
+
+	interviewModel, err := i.convertInterviewEntityToModel(ctx, ongoingInterview, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -164,7 +164,7 @@ func (i *InterviewServiceImpl) GetUnfinishedInterview(ctx context.Context, userI
 		return nil, err
 	}
 
-	if interview == nil {
+	if !interview.Exists() {
 		return nil, nil
 	}
 
@@ -341,9 +341,14 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 		return nil, nil
 	}
 
-	intent, err := i.classifyIntent(ctx, i.transcriptManager.GetSentenceInBuffer(ctx, interviewID))
+	intent, err := i.intentClassificationRepo.ClassifyIntent(ctx, i.transcriptManager.GetSentenceInBuffer(ctx, interviewID))
 	if err != nil {
 		return nil, err
+	}
+
+	if util.IsDevEnv() {
+		intent, score := intent.GetIntentWithHighestConfidenceScoreWithScore()
+		fmt.Printf("The current message chunk is '%s', the intent is %s with a score of %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), intent, score)
 	}
 
 	if err := i.transcriptManager.Flush(ctx, interviewID); err != nil {
@@ -358,25 +363,20 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	return response, nil
 }
 
-func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *model.Intent) (*model.WebSocketMessage, error) {
-	fmt.Println("the intent is", util.FromPtr(intent))
-
+func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *model.IntentDetail) (*model.WebSocketMessage, error) {
 	if intent == nil {
 		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
 	}
 
-	switch util.FromPtr(intent) {
-	case model.NO_INTENT:
+	if intent.GetIntentWithHighestConfidenceScore() == model.CANDIDATE_EXPLANATION {
 		return i.listen(ctx, interviewID)
-	case model.HINT_REQUEST:
-		return i.giveHints(ctx, interviewID)
-	case model.END_REQUEST:
-		return i.endInterview(ctx, interviewID)
-	case model.CLARIFICATION_REQUEST:
-		return i.clarify(ctx, interviewID)
-	default:
-		return nil, fmt.Errorf("invalid intent type %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
 	}
+
+	if intent.GetIntentWithHighestConfidenceScore() == model.OTHERS {
+		return i.answer(ctx, interviewID)
+	}
+
+	return nil, fmt.Errorf("invalid intent %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
 }
 
 func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context, token string) (uint, error) {
@@ -479,7 +479,7 @@ func (i *InterviewServiceImpl) listen(ctx context.Context, interviewID uint) (*m
 }
 
 // CandidateAsksForClarification implements InterviewScenario.
-func (i *InterviewServiceImpl) clarify(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+func (i *InterviewServiceImpl) answer(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	err := i.transcriptManager.Flush(ctx, interviewID)
 	if err != nil {
 		return nil, err
@@ -498,7 +498,7 @@ func (i *InterviewServiceImpl) clarify(ctx context.Context, interviewID uint) (*
 	llmMessages = append(llmMessages, &model.LLMMessage{
 		Role: model.SYSTEM,
 		Content: `
-			You are now tasked to answer clarifying questions from the candidate in a way that helps them better understand the problem without giving away the solution.
+			You are now tasked to answer any questions from the candidate in a way that helps them better understand the problem without giving away the solution.
 			Be clear, concise, and professional — just like you would be in a real interview.
 			Provide only as much information as needed to address their question directly.
 			Avoid adding extra hints or restating parts of the problem unless it's necessary for clarification.
@@ -544,138 +544,4 @@ func (i *InterviewServiceImpl) clarify(ctx context.Context, interviewID uint) (*
 		From: model.SERVER,
 		URL:  util.ToPtr(url),
 	}, nil
-}
-
-// CandidateAsksForHints implements InterviewScenario.
-func (i *InterviewServiceImpl) giveHints(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
-	err := i.transcriptManager.Flush(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
-	llmMessages := make([]*model.LLMMessage, 0)
-	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
-	llmMessages = append(llmMessages, &model.LLMMessage{
-		Role: model.SYSTEM,
-		Content: `
-			You are a senior software engineer conducting a LeetCode-style technical interview. 
-			Your task is to provide concise, high-quality hints to help the candidate move forward based on the question they're currently solving and the history of their previous questions or messages. 
-			Do not give the full solution. 
-			Tailor your hints to their level of understanding and avoid repeating information they've already figured out. 
-			If the candidate appears confused or stuck, offer a nudge in the right direction without revealing the answer.
-			Keep your hints short and simple, and reply like how you would in a real life interview.
-		`,
-	})
-
-	for _, transcript := range history {
-		llmMessages = append(llmMessages, transcript.ToLLMMessage())
-	}
-
-	req := &model.ChatCompletionsRequest{
-		Messages: llmMessages,
-	}
-
-	resp, err := i.llmRepo.ChatCompletions(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	replyToCandidate := resp.GetResponse().GetContent()
-
-	reader, err := i.ttsRepo.TextToSpeechReader(
-		ctx,
-		replyToCandidate,
-		`You are a senior software engineer conducting a LeetCode-style technical interview. 
-		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
-		Pause briefly between key points. 
-		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Make the file name follow a structure
-	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url, entity.ASSISTANT); err != nil {
-		return nil, err
-	}
-
-	return &model.WebSocketMessage{
-		From: model.SERVER,
-		URL:  util.ToPtr(url),
-	}, nil
-}
-
-// CandidateWantsToEnd implements InterviewScenario.
-func (i *InterviewServiceImpl) endInterview(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
-	err := i.transcriptManager.Flush(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
-	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
-	if err != nil {
-		return nil, err
-	}
-
-	interview.End()
-	if err = i.interviewRepo.Update(ctx, interview); err != nil {
-		return nil, err
-	}
-
-	endingTranscript := "Hey thanks for joining this interview, I hope you had fun"
-	reader, err := i.ttsRepo.TextToSpeechReader(
-		ctx,
-		endingTranscript,
-		`
-		You are a senior software engineer conducting a LeetCode-style technical interview. 
-		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
-		Pause briefly between key points. 
-		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.`,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	reviewMessage, err := json.Marshal(&model.ReviewMessage{InterviewID: interviewID})
-	if err != nil {
-		return nil, fmt.Errorf("unable to marshal before passing into message queue for review, %s: %w", err, common.ErrInternalServerError)
-	}
-
-	if err := i.messageQueueRepo.Push(ctx, reviewMessage, common.REVIEW_QUEUE); err != nil {
-		return nil, err
-	}
-
-	// TODO: Make the file name follow a structure
-	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, endingTranscript, url, entity.ASSISTANT); err != nil {
-		return nil, err
-	}
-
-	return &model.WebSocketMessage{
-		From:      model.SERVER,
-		URL:       util.ToPtr(url),
-		CloseConn: true,
-	}, nil
-}
-
-func (i *InterviewServiceImpl) classifyIntent(ctx context.Context, sentence string) (*model.Intent, error) {
-	intent, err := i.intentClassificationRepo.ClassifyIntent(ctx, sentence)
-	if err != nil {
-		return nil, err
-	}
-
-	return intent, nil
 }

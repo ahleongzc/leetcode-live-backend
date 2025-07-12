@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 )
 
@@ -20,8 +22,8 @@ type FastTextProcess struct {
 	mu      sync.Mutex
 }
 
-func NewFastTextProcess(modelPath string) (*FastTextProcess, error) {
-	cmd := exec.Command("./internal/repo/fasttext/fasttext", "predict", modelPath, "-")
+func NewFastTextProcess(modelPath string, numClasses uint) (*FastTextProcess, error) {
+	cmd := exec.Command("./internal/repo/fasttext/fasttext", "predict-prob", modelPath, "-", strconv.Itoa(int(numClasses)))
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -48,7 +50,7 @@ func NewFastTextProcess(modelPath string) (*FastTextProcess, error) {
 	}, nil
 }
 
-func (f *FastTextProcess) Classify(text string) (string, error) {
+func (f *FastTextProcess) Classify(text string) (*model.IntentDetail, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
@@ -57,17 +59,34 @@ func (f *FastTextProcess) Classify(text string) (string, error) {
 	}
 
 	if _, err := f.stdin.Write([]byte(text + "\n")); err != nil {
-		return "", fmt.Errorf("failed to write to fasttext: %w", common.ErrInternalServerError)
+		return nil, fmt.Errorf("failed to write to fasttext: %w", common.ErrInternalServerError)
 	}
 
 	if !f.scanner.Scan() {
 		if err := f.scanner.Err(); err != nil {
-			return "", fmt.Errorf("failed to read from fasttext: %w", common.ErrInternalServerError)
+			return nil, fmt.Errorf("failed to read from fasttext: %w", common.ErrInternalServerError)
 		}
-		return "", fmt.Errorf("fasttext process closed unexpectedly: %w", common.ErrInternalServerError)
+		return nil, fmt.Errorf("fasttext process closed unexpectedly: %w", common.ErrInternalServerError)
 	}
 
-	return strings.TrimPrefix(f.scanner.Text(), "__label__"), nil
+	parts := strings.Fields(f.scanner.Text())
+	if len(parts)%2 != 0 {
+		return nil, fmt.Errorf("unexpected fasttext output format %s: %w", f.scanner.Text(), common.ErrInternalServerError)
+	}
+
+	intentDetail := model.NewIntentDetail()
+
+	for i := 0; i < len(parts); i += 2 {
+		label := strings.TrimPrefix(parts[i], "__label__")
+
+		var confidence float64
+		if _, err := fmt.Sscanf(parts[i+1], "%f", &confidence); err != nil {
+			return nil, fmt.Errorf("unexpected fasttext output format %s: %w", f.scanner.Text(), common.ErrInternalServerError)
+		}
+		intentDetail.Mapping[model.Intent(label)] = confidence
+	}
+
+	return intentDetail, nil
 }
 
 func (f *FastTextProcess) Close() error {

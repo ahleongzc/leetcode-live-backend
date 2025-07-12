@@ -51,7 +51,7 @@ func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Re
 	}
 
 	payload := util.NewJSONPayload()
-	payload.Add("data", ongoingInterview)
+	payload.Add("data", util.JSONPayload{"interview": ongoingInterview})
 
 	WriteJSONHTTP(w, payload, http.StatusOK, nil)
 }
@@ -100,14 +100,14 @@ func (i *InterviewHandler) GetUnfinishedInterview(w http.ResponseWriter, r *http
 		return
 	}
 
-	ongoingInterview, err := i.interviewService.GetUnfinishedInterview(ctx, userID)
+	unfinishedInterview, err := i.interviewService.GetUnfinishedInterview(ctx, userID)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
 	}
 
 	payload := util.NewJSONPayload()
-	payload.Add("interview", ongoingInterview)
+	payload.Add("data", util.JSONPayload{"interview": unfinishedInterview})
 
 	WriteJSONHTTP(w, payload, http.StatusOK, nil)
 }

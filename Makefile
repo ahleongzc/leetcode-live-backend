@@ -27,8 +27,9 @@ count:
 	@cloc .
 
 train:
+	@cd scripts && python3 clean.py
 	@./internal/repo/fasttext/fasttext supervised \
-		-input ./training-data/labels.txt \
+		-input ./scripts/labels.txt \
 		-output ./bin/model \
 		-epoch 100 \
 		-dim 100 \
@@ -37,7 +38,7 @@ train:
 testIC:
 	@./internal/repo/fasttext/fasttext test \
 		./bin/model.bin \
-		./training-data/test.txt
+		./scripts/test.txt
 
 setUpInfra:
 	@if [ "$$(docker ps -q -f name=rabbitmq)" = "" ]; then \
