@@ -63,6 +63,7 @@ func migrateEntities(db *gorm.DB) error {
 		&entity.Transcript{},
 		&entity.User{},
 		&entity.Review{},
+		&entity.Setting{},
 	)
 	return err
 }

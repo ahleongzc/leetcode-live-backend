@@ -56,9 +56,12 @@ func (i *Interview) Abandon() {
 	if i == nil {
 		return
 	}
+
+	i.ConsumeToken()
+	i.End()
+
 	i.AbandonedTimestampMS = util.ToPtr(time.Now().UnixMilli())
 	i.Abandoned = true
-	i.Ongoing = false
 }
 
 func (i *Interview) ConsumeToken() {

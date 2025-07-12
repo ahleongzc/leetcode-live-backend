@@ -49,16 +49,18 @@ func NewApplication(
 func (a *Application) Handler() http.Handler {
 	mux := http.NewServeMux()
 
+	// --- These routes are public and don't require authentication (if they are needed, they are handled at the service layer)
 	mux.HandleFunc("GET /v1/health", a.healthHandler.HealthCheck)
 
 	mux.HandleFunc("POST /v1/auth/login", a.authHandler.Login)
 	mux.HandleFunc("POST /v1/user/register", a.userHandler.Register)
 
 	mux.HandleFunc("GET /v1/interview/join", a.interviewHandler.JoinInterview)
+	// ---
 
 	// --- These routes require X-Session-Token to be in the headers
 	protected := alice.New(a.middleware.Authenticate, a.middleware.SetUserID, a.middleware.SetSessionTokenInResponseHeader)
-	mux.Handle("POST /v1/auth/status", protected.ThenFunc(a.authHandler.GetStatus))
+	mux.Handle("GET /v1/user", protected.ThenFunc(a.userHandler.GetUserProfile))
 	mux.Handle("POST /v1/auth/logout", protected.ThenFunc(a.authHandler.Logout))
 
 	mux.Handle("POST /v1/interview/set-up-new", protected.ThenFunc(a.interviewHandler.SetUpNewInterview))

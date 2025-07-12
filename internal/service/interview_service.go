@@ -122,8 +122,6 @@ func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, u
 	var errBadRequest error
 	if interview.SetUpCount >= 3 {
 		return fmt.Errorf("previous set up interview attempt exceeded: %w", common.ErrBadRequest)
-	} else {
-		interview.End()
 	}
 
 	interview.ConsumeToken()

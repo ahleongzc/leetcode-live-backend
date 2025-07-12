@@ -38,7 +38,7 @@ func (u *UserRepoImpl) GetByEmail(ctx context.Context, email string) (*entity.Us
 	defer cancel()
 
 	user := &entity.User{}
-	if err := u.db.WithContext(ctx).Where("email = ?", email).First(&user).Error; err != nil {
+	if err := u.db.WithContext(ctx).Where("email = ?", email).First(user).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("user: %w", common.ErrNotFound)
 		}

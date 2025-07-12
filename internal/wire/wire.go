@@ -42,6 +42,7 @@ func InitializeApplication() (*app.Application, error) {
 
 		// Repo
 		repo.NewReviewRepo,
+		repo.NewSettingRepo,
 		repo.NewQuestionRepo,
 		repo.NewSessionRepo,
 		repo.NewUserRepo,

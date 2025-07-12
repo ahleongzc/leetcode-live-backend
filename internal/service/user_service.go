@@ -8,6 +8,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 
 	"golang.org/x/crypto/bcrypt"
@@ -15,18 +16,44 @@ import (
 
 type UserService interface {
 	RegisterNewUser(ctx context.Context, email, password string) error
+	GetUserProfile(ctx context.Context, userID uint) (*model.UserProfile, error)
 }
 
 func NewUserService(
 	userRepo repo.UserRepo,
+	settingRepo repo.SettingRepo,
 ) UserService {
 	return &UserServiceImpl{
-		userRepo: userRepo,
+		userRepo:    userRepo,
+		settingRepo: settingRepo,
 	}
 }
 
 type UserServiceImpl struct {
-	userRepo repo.UserRepo
+	userRepo    repo.UserRepo
+	settingRepo repo.SettingRepo
+}
+
+// GetUserProfile implements UserService.
+func (u *UserServiceImpl) GetUserProfile(ctx context.Context, userID uint) (*model.UserProfile, error) {
+	user, err := u.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	setting, err := u.settingRepo.GetByID(ctx, user.SettingID)
+	if err != nil {
+		return nil, err
+	}
+
+	userProfile := model.NewUserProfileBuilder().
+		SetEmail(user.Email).
+		SetUsername(user.Username).
+		SetRemainingInterviewCount(setting.RemainingInterviewCount).
+		SetInterviewDurationS(uint(setting.InterviewDurationS)).
+		Build()
+
+	return userProfile, nil
 }
 
 // RegisterNewUser implements UserService.
@@ -35,12 +62,8 @@ func (u *UserServiceImpl) RegisterNewUser(ctx context.Context, email, password s
 		return fmt.Errorf("invalid email format: %w", common.ErrBadRequest)
 	}
 
-	if len(password) > 20 {
-		return fmt.Errorf("password is too long, must be less than or equal to 20 characters: %w", common.ErrBadRequest)
-	}
-
-	if len(password) < 8 {
-		return fmt.Errorf("password is too short, must be longer than or equal to 8 characters: %w", common.ErrBadRequest)
+	if !isValidPassword(password) {
+		return fmt.Errorf("invalid password length, must be between 8 and 20 characters: %w", common.ErrBadRequest)
 	}
 
 	isDuplicated, err := u.isDuplicatedEmail(ctx, email)
@@ -57,17 +80,36 @@ func (u *UserServiceImpl) RegisterNewUser(ctx context.Context, email, password s
 		return fmt.Errorf("unable to hash password, %s: %w", err, common.ErrInternalServerError)
 	}
 
-	user := &entity.User{
-		Email:    email,
-		Password: hashedPassword,
+	settingID, err := u.createDefaultSetting(ctx)
+	if err != nil {
+		return nil
 	}
 
-	err = u.userRepo.Create(ctx, user)
-	if err != nil {
+	user := entity.NewUserWithSettingID(settingID)
+	user.SetEmail(email)
+	user.SetPassword(hashedPassword)
+	user.SetUsername(email)
+
+	if err := u.userRepo.Create(ctx, user); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (u *UserServiceImpl) createDefaultSetting(ctx context.Context) (uint, error) {
+	setting := entity.NewDefaultSetting()
+
+	settingID, err := u.settingRepo.Create(ctx, setting)
+	if err != nil {
+		return 0, err
+	}
+
+	return settingID, nil
+}
+
+func isValidPassword(password string) bool {
+	return len(password) >= 8 && len(password) <= 20
 }
 
 func isValidEmail(email string) bool {

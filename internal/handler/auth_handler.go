@@ -45,11 +45,6 @@ func (a *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	WriteJSONHTTP(w, nil, http.StatusOK, headers)
 }
 
-// The logic is handled by the middleware already
-func (a *AuthHandler) GetStatus(w http.ResponseWriter, r *http.Request) {
-	WriteJSONHTTP(w, nil, http.StatusOK, nil)
-}
-
 func (a *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	sessionToken, err := util.GetSessionToken(ctx)
