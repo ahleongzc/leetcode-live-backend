@@ -36,6 +36,22 @@ func NewInterviewHandler(
 	}
 }
 
+func (i *InterviewHandler) EndOngoingInterview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	userID, err := util.GetUserID(ctx)
+	if err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	if err := i.interviewService.EndCandidateOngoingInterview(ctx, userID); err != nil {
+		HandleErrorResponseHTTP(w, err)
+		return
+	}
+
+	WriteJSONHTTP(w, nil, http.StatusOK, nil)
+}
+
 func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	userID, err := util.GetUserID(ctx)
@@ -44,7 +60,7 @@ func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	ongoingInterview, err := i.interviewService.GetOngoingInterview(ctx, userID)
+	ongoingInterview, err := i.interviewService.GetCandidateOngoingInterview(ctx, userID)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -64,7 +80,7 @@ func (i *InterviewHandler) AbandonUnfinishedInterview(w http.ResponseWriter, r *
 		return
 	}
 
-	if err := i.interviewService.AbandonUnfinishedInterview(ctx, userId); err != nil {
+	if err := i.interviewService.AbandonCandidateUnfinishedInterview(ctx, userId); err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
 	}
@@ -80,7 +96,7 @@ func (i *InterviewHandler) SetUpUnfinishedInterview(w http.ResponseWriter, r *ht
 		return
 	}
 
-	token, err := i.interviewService.SetUpUnfinishedInterview(ctx, userID)
+	token, err := i.interviewService.SetUpCandidateUnfinishedInterview(ctx, userID)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -100,7 +116,7 @@ func (i *InterviewHandler) GetUnfinishedInterview(w http.ResponseWriter, r *http
 		return
 	}
 
-	unfinishedInterview, err := i.interviewService.GetUnfinishedInterview(ctx, userID)
+	unfinishedInterview, err := i.interviewService.GetCandidateUnfinishedInterview(ctx, userID)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -154,7 +170,7 @@ func (i *InterviewHandler) SetUpNewInterview(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	token, err := i.interviewService.SetUpNewInterview(ctx, userID, request.QuestionID, request.Description)
+	token, err := i.interviewService.SetUpNewInterviewForCandidate(ctx, userID, request.QuestionID, request.Description)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -171,7 +187,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	defer cancel()
 
 	token := r.URL.Query().Get("token")
-	interviewID, err := i.interviewService.ConsumeTokenAndStartInterview(ctx, token)
+	interview, err := i.interviewService.ConsumeTokenAndStartInterview(ctx, token)
 	if err != nil {
 		HandleErrorResponseHTTP(w, err)
 		return
@@ -190,7 +206,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 
 	go func() {
 		defer close(respondChan)
-		i.readPump(ctx, interviewID, conn, respondChan, errChan)
+		i.readPump(ctx, interview.ID, conn, respondChan, errChan)
 	}()
 
 	go func() {
@@ -202,7 +218,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	case <-closeChan:
 		conn.Close(websocket.StatusNormalClosure, "interview ended")
 	case err := <-errChan:
-		i.interviewService.PauseOngoingInterview(ctx, interviewID)
+		i.interviewService.PauseCandidateOngoingInterview(ctx, interview.UserID)
 		HandleErrorResponeWebsocket(ctx, conn, err)
 		cancel()
 	}

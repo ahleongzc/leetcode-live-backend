@@ -17,6 +17,7 @@ import (
 type UserService interface {
 	RegisterNewUser(ctx context.Context, email, password string) error
 	GetUserProfile(ctx context.Context, userID uint) (*model.UserProfile, error)
+	GetUserSetting(ctx context.Context, userID uint) (*entity.Setting, error)
 }
 
 func NewUserService(
@@ -34,6 +35,21 @@ type UserServiceImpl struct {
 	settingRepo repo.SettingRepo
 }
 
+// GetUserSetting implements UserService.
+func (u *UserServiceImpl) GetUserSetting(ctx context.Context, userID uint) (*entity.Setting, error) {
+	user, err := u.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	setting, err := u.settingRepo.GetByID(ctx, user.SettingID)
+	if err != nil {
+		return nil, err
+	}
+
+	return setting, nil
+}
+
 // GetUserProfile implements UserService.
 func (u *UserServiceImpl) GetUserProfile(ctx context.Context, userID uint) (*model.UserProfile, error) {
 	user, err := u.userRepo.GetByID(ctx, userID)
@@ -43,6 +59,10 @@ func (u *UserServiceImpl) GetUserProfile(ctx context.Context, userID uint) (*mod
 
 	setting, err := u.settingRepo.GetByID(ctx, user.SettingID)
 	if err != nil {
+		// This one is an internal server error because user should always have a setting tied to them
+		if errors.Is(err, common.ErrNotFound) {
+			return nil, fmt.Errorf("no setting tied to user %d: %w", userID, common.ErrInternalServerError)
+		}
 		return nil, err
 	}
 

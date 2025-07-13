@@ -52,7 +52,7 @@ func (q *QuestionRepoImpl) GetByExternalID(ctx context.Context, externalID strin
 		Where("external_id = ?", externalID).
 		First(question).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("question: %w", common.ErrNotFound)
+			return nil, fmt.Errorf("question not found: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get question with external_id %s: %w", externalID, err)
 	}
@@ -70,7 +70,7 @@ func (q *QuestionRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Questi
 	if err := q.db.WithContext(ctx).
 		First(question, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("question: %w", common.ErrNotFound)
+			return nil, fmt.Errorf("question not found: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get question with id %d: %w", id, err)
 	}

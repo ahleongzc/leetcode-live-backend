@@ -45,7 +45,7 @@ func (i *InterviewRepoImpl) GetOngoingInterviewByUserID(ctx context.Context, use
 		Where("user_id = ? AND ongoing IS true", userID).
 		First(interview).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+			return nil, fmt.Errorf("interview not found: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get unstarted interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
 	}
@@ -113,7 +113,7 @@ func (i *InterviewRepoImpl) GetUnstartedInterviewByUserID(ctx context.Context, u
 		Where("user_id = ? AND start_timestamp_ms IS NULL", userID).
 		First(interview).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+			return nil, fmt.Errorf("interview not found: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get unstarted interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
 	}
@@ -131,7 +131,7 @@ func (i *InterviewRepoImpl) GetUnfinishedInterviewByUserID(ctx context.Context, 
 		Where("user_id = ? AND start_timestamp_ms IS NOT NULL AND end_timestamp_ms IS NULL", userID).
 		First(interview).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+			return nil, fmt.Errorf("interview not found: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get unfinished interview for user id %d, %s: %w", userID, err, common.ErrInternalServerError)
 	}
@@ -147,7 +147,7 @@ func (i *InterviewRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Inter
 	if err := i.db.WithContext(ctx).
 		First(interview, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+			return nil, fmt.Errorf("interview not found: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get interview with id %d, %s: %w", id, err.Error(), common.ErrInternalServerError)
 	}
@@ -164,7 +164,7 @@ func (i *InterviewRepoImpl) GetByToken(ctx context.Context, token string) (*enti
 		Where("token = ?", token).
 		First(interview).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("interview: %w", common.ErrNotFound)
+			return nil, fmt.Errorf("interview not found: %w", common.ErrNotFound)
 		}
 		return nil, fmt.Errorf("unable to get interview with token %s, %s: %w", token, err.Error(), common.ErrInternalServerError)
 	}

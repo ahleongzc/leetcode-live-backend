@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
@@ -20,6 +21,8 @@ type Interview struct {
 	Ongoing              bool
 	Abandoned            bool
 	AbandonedTimestampMS *int64
+	ElapsedTimeS         uint
+	AllocatedDurationS   uint
 }
 
 func NewInterview() *Interview {
@@ -33,6 +36,14 @@ func NewInterview() *Interview {
 // The client should join immediately after the initial set up, because the join interview will reset the setup count
 func (i *Interview) ExceedSetupCountThreshold() bool {
 	return i.SetupCount >= 3
+}
+
+func (i *Interview) SetAllocatedDurationS(durationSeconds uint) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.AllocatedDurationS = durationSeconds
+	return i
 }
 
 func (i *Interview) IncrementSetupCount() *Interview {
@@ -103,6 +114,7 @@ func (i *Interview) Pause() *Interview {
 		return nil
 	}
 	i.Ongoing = false
+	i.UpdateElapsedTimeS()
 	return i
 }
 
@@ -130,13 +142,17 @@ func (i *Interview) IsUnfinished() bool {
 	return i.StartTimestampMS != nil && i.EndTimestampMS == nil
 }
 
+// Note that the logic for abandon and update seems similar, 
+// but the key difference is that abandoning an interview doesn't update the elapsed duration
 func (i *Interview) Abandon() *Interview {
 	if i == nil {
 		return nil
 	}
 
 	i.ConsumeToken()
-	i.End()
+
+	i.Ongoing = false
+	i.EndTimestampMS = util.ToPtr(time.Now().UnixMilli())
 
 	i.AbandonedTimestampMS = util.ToPtr(time.Now().UnixMilli())
 	i.Abandoned = true
@@ -164,8 +180,12 @@ func (i *Interview) End() *Interview {
 	if i == nil {
 		return nil
 	}
+
 	i.Ongoing = false
 	i.EndTimestampMS = util.ToPtr(time.Now().UnixMilli())
+
+	i.UpdateElapsedTimeS()
+
 	return i
 }
 
@@ -177,11 +197,26 @@ func (i *Interview) Start() *Interview {
 	return i
 }
 
+func (i *Interview) UpdateElapsedTimeS() {
+	if i == nil {
+		return
+	}
+
+	durationS := util.MillisToSeconds(time.Now().UnixMilli() - i.UpdateTimestampMS)
+	i.ElapsedTimeS += uint(durationS)
+
+	fmt.Println("updating the elapsed time")
+	fmt.Println("the time now is ", util.ConvertUnixMilliToHumanReadableFormat(time.Now().UnixMilli()))
+	fmt.Println("the update time is ", util.ConvertUnixMilliToHumanReadableFormat(i.UpdateTimestampMS))
+	fmt.Println("the elapsed time is ", durationS)
+	fmt.Println("the total elapsed time is ", i.ElapsedTimeS)
+}
+
 func (i *Interview) HasEnded() bool {
 	if i == nil {
 		return false
 	}
-	return i.EndTimestampMS != nil && i.Ongoing == false
+	return i.EndTimestampMS != nil && !i.Ongoing
 }
 
 func (i *Interview) HasStarted() bool {
@@ -195,7 +230,6 @@ func (i *Interview) GetReviewID() uint {
 	if i == nil || i.ReviewID == nil {
 		return 0
 	}
-
 	return util.FromPtr(i.ReviewID)
 }
 
@@ -228,6 +262,5 @@ func (i *Interview) ReviewExists() bool {
 	if i == nil {
 		return false
 	}
-
 	return i.ReviewID != nil
 }

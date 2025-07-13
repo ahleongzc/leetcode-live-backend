@@ -16,18 +16,20 @@ type InterviewService interface {
 	GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error)
 	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error)
 	// Returns the id of the interview
-	ConsumeTokenAndStartInterview(ctx context.Context, token string) (uint, error)
+	ConsumeTokenAndStartInterview(ctx context.Context, token string) (*entity.Interview, error)
 	// Returns the one-off token that is used to validate the incoming websocket request
-	SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
+	SetUpNewInterviewForCandidate(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
 	PrepareToListen(ctx context.Context, interviewID uint) error
-	PauseOngoingInterview(ctx context.Context, interviewID uint) error
-	AbandonUnfinishedInterview(ctx context.Context, userID uint) error
-	SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error)
-	GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
-	GetUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
+	PauseCandidateOngoingInterview(ctx context.Context, userID uint) error
+	AbandonCandidateUnfinishedInterview(ctx context.Context, userID uint) error
+	SetUpCandidateUnfinishedInterview(ctx context.Context, userID uint) (string, error)
+	GetCandidateOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
+	EndCandidateOngoingInterview(ctx context.Context, userID uint) error
+	GetCandidateUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
 }
 
 func NewInterviewService(
+	userService UserService,
 	authService AuthService,
 	reviewService ReviewService,
 	questionService QuestionService,
@@ -43,6 +45,7 @@ func NewInterviewService(
 ) InterviewService {
 	return &InterviewServiceImpl{
 		authService:              authService,
+		userService:              userService,
 		reviewService:            reviewService,
 		questionService:          questionService,
 		transcriptManager:        transcriptManager,
@@ -58,6 +61,7 @@ func NewInterviewService(
 }
 
 type InterviewServiceImpl struct {
+	userService              UserService
 	authService              AuthService
 	reviewService            ReviewService
 	questionService          QuestionService
@@ -72,14 +76,34 @@ type InterviewServiceImpl struct {
 	messageQueueRepo         repo.MessageQueueProducerRepo
 }
 
-// PauseOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) PauseOngoingInterview(ctx context.Context, interviewID uint) error {
-	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
-	if err != nil {
-		if errors.Is(err, common.ErrNotFound) {
-			return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
-		}
+// EndOngoingInterview implements InterviewService.
+func (i *InterviewServiceImpl) EndCandidateOngoingInterview(ctx context.Context, userID uint) error {
+	ongoingInterview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return err
+	}
+
+	if !ongoingInterview.Exists() {
+		return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+	}
+
+	ongoingInterview.End()
+	if err := i.interviewRepo.Update(ctx, ongoingInterview); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PauseOngoingInterview implements InterviewService.
+func (i *InterviewServiceImpl) PauseCandidateOngoingInterview(ctx context.Context, userID uint) error {
+	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
+		return err
+	}
+
+	if !interview.Exists() {
+		return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
 	}
 
 	interview.Pause()
@@ -91,7 +115,7 @@ func (i *InterviewServiceImpl) PauseOngoingInterview(ctx context.Context, interv
 }
 
 // GetOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
+func (i *InterviewServiceImpl) GetCandidateOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
 	ongoingInterview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return nil, err
@@ -110,7 +134,7 @@ func (i *InterviewServiceImpl) GetOngoingInterview(ctx context.Context, userID u
 }
 
 // AbandonOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, userID uint) error {
+func (i *InterviewServiceImpl) AbandonCandidateUnfinishedInterview(ctx context.Context, userID uint) error {
 	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
@@ -138,7 +162,7 @@ func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, u
 }
 
 // SetUpOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) SetUpUnfinishedInterview(ctx context.Context, userID uint) (string, error) {
+func (i *InterviewServiceImpl) SetUpCandidateUnfinishedInterview(ctx context.Context, userID uint) (string, error) {
 	unfinishedInterview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
@@ -155,7 +179,7 @@ func (i *InterviewServiceImpl) SetUpUnfinishedInterview(ctx context.Context, use
 	return freshToken, nil
 }
 
-func (i *InterviewServiceImpl) GetUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error) {
+func (i *InterviewServiceImpl) GetCandidateUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error) {
 	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return nil, err
@@ -271,7 +295,7 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 	return history, pagination, nil
 }
 
-func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error) {
+func (i *InterviewServiceImpl) SetUpNewInterviewForCandidate(ctx context.Context, userID uint, externalQuestionID, description string) (string, error) {
 	questionID, err := i.questionService.GetOrCreateQuestion(ctx, externalQuestionID, description)
 	if err != nil {
 		return "", err
@@ -305,12 +329,18 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return "", err
 	}
 
+	setting, err := i.userService.GetUserSetting(ctx, userID)
+	if err != nil {
+		return "", err
+	}
+
 	interview := entity.NewInterview().
 		SetUserID(userID).
 		SetQuestionID(questionID).
 		SetToken(i.authService.GenerateRandomToken()).
 		SetQuestionAttemptCount(questionCount + 1).
-		SetSetupCount(1)
+		SetSetupCount(1).
+		SetAllocatedDurationS(setting.InterviewDurationS)
 
 	id, err := i.interviewRepo.Create(ctx, interview)
 	if err != nil {
@@ -377,13 +407,13 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uin
 	return nil, fmt.Errorf("invalid intent %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
 }
 
-func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context, token string) (uint, error) {
+func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context, token string) (*entity.Interview, error) {
 	interview, err := i.interviewRepo.GetByToken(ctx, token)
 	if err != nil {
 		if errors.Is(err, common.ErrNotFound) {
-			return 0, common.ErrUnauthorized
+			return nil, common.ErrUnauthorized
 		}
-		return 0, err
+		return nil, err
 	}
 
 	if !interview.ReviewExists() {
@@ -392,7 +422,7 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 
 		reviewID, err := i.reviewRepo.Create(ctx, review)
 		if err != nil {
-			return 0, err
+			return nil, err
 		}
 
 		interview.SetReviewID(reviewID)
@@ -409,10 +439,10 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 
 	err = i.interviewRepo.Update(ctx, interview)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 
-	return interview.ID, nil
+	return interview, nil
 }
 
 // Checks if the set up count is more than a certain number then rejects them, else return a fresh token

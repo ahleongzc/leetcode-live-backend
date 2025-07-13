@@ -92,7 +92,7 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
-	interviewService := service.NewInterviewService(authService, reviewService, questionService, transcriptManager, ttsRepo, llmRepo, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
+	interviewService := service.NewInterviewService(userService, authService, reviewService, questionService, transcriptManager, ttsRepo, llmRepo, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
