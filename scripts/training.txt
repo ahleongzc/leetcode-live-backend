@@ -2273,7 +2273,7 @@ __label__explanation A peak element is an element that is strictly greater than 
 __label__explanation Given an integer array nums, find a peak element, and return its index.
 __label__explanation Given an array nums of size n, return the majority element.
 __label__explanation The majority element is the element that appears more than n / 2 times.
-__label__explanation Given a string columnTitle that represents the column title as appear in an Excel sheet, return its corresponding column number.
+__label__explanation Given a string column title that represents the column title as appear in an Excel sheet, return its corresponding column number.
 __label__explanation Given an integer n, return the number of trailing zeroes in n!.
 __label__explanation Given an array, rotate the array to the right by k steps, where k is non-negative.
 __label__explanation Reverse bits of a given 32 bits unsigned integer.

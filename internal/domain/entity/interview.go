@@ -8,32 +8,110 @@ import (
 
 type Interview struct {
 	Base
-	UserID                uint
-	QuestionID            uint
-	Code                  string
-	StartTimestampMS      *int64
-	ReviewID              *uint
-	EndTimestampMS        *int64
-	Token                 *string
-	QuestionAttemptNumber uint
-	SetUpCount            uint
-	Ongoing               bool
-	Abandoned             bool
-	AbandonedTimestampMS  *int64
+	UserID               uint
+	QuestionID           uint
+	Code                 string
+	StartTimestampMS     *int64
+	ReviewID             *uint
+	EndTimestampMS       *int64
+	Token                *string
+	QuestionAttemptCount uint
+	SetupCount           uint
+	Ongoing              bool
+	Abandoned            bool
+	AbandonedTimestampMS *int64
 }
 
-func (i *Interview) Pause() {
+func NewInterview() *Interview {
+	return &Interview{}
+}
+
+// The chances of this happening is low
+// When the client starts an interview, it is a two step process
+// 1. Setup interview (HTTP)
+// 2. Join interview (Websocket)
+// The client should join immediately after the initial set up, because the join interview will reset the setup count
+func (i *Interview) ExceedSetupCountThreshold() bool {
+	return i.SetupCount >= 3
+}
+
+func (i *Interview) IncrementSetupCount() *Interview {
+	if i == nil {
+		return nil
+	}
+	i.SetupCount++
+	return i
+}
+
+func (i *Interview) SetUserID(userID uint) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.UserID = userID
+	return i
+}
+
+func (i *Interview) SetQuestionID(questionID uint) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.QuestionID = questionID
+	return i
+}
+
+func (i *Interview) SetToken(token string) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.Token = util.ToPtr(token)
+	return i
+}
+
+func (i *Interview) SetQuestionAttemptCount(count uint) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.QuestionAttemptCount = count
+	return i
+}
+
+func (i *Interview) SetSetupCount(count uint) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.SetupCount = count
+	return i
+}
+
+func (i *Interview) SetReviewID(reviewID uint) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.ReviewID = util.ToPtr(reviewID)
+	return i
+}
+
+func (i *Interview) ResetSetupCount() {
 	if i == nil {
 		return
+	}
+	i.SetSetupCount(0)
+}
+
+func (i *Interview) Pause() *Interview {
+	if i == nil {
+		return nil
 	}
 	i.Ongoing = false
+	return i
 }
 
-func (i *Interview) SetOngoing() {
+func (i *Interview) SetOngoing() *Interview {
 	if i == nil {
-		return
+		return nil
 	}
 	i.Ongoing = true
+	return i
 }
 
 func (i *Interview) IsUnstarted() bool {
@@ -52,9 +130,9 @@ func (i *Interview) IsUnfinished() bool {
 	return i.StartTimestampMS != nil && i.EndTimestampMS == nil
 }
 
-func (i *Interview) Abandon() {
+func (i *Interview) Abandon() *Interview {
 	if i == nil {
-		return
+		return nil
 	}
 
 	i.ConsumeToken()
@@ -62,28 +140,48 @@ func (i *Interview) Abandon() {
 
 	i.AbandonedTimestampMS = util.ToPtr(time.Now().UnixMilli())
 	i.Abandoned = true
+
+	return i
 }
 
-func (i *Interview) ConsumeToken() {
+func (i *Interview) TokenExists() bool {
 	if i == nil {
-		return
+		return false
+	}
+
+	return i.Token != nil
+}
+
+func (i *Interview) ConsumeToken() *Interview {
+	if i == nil {
+		return nil
 	}
 	i.Token = nil
+	return i
 }
 
-func (i *Interview) End() {
+func (i *Interview) End() *Interview {
 	if i == nil {
-		return
+		return nil
 	}
 	i.Ongoing = false
 	i.EndTimestampMS = util.ToPtr(time.Now().UnixMilli())
+	return i
 }
 
-func (i *Interview) Start() {
+func (i *Interview) Start() *Interview {
 	if i == nil {
-		return
+		return nil
 	}
 	i.StartTimestampMS = util.ToPtr(time.Now().UnixMilli())
+	return i
+}
+
+func (i *Interview) HasEnded() bool {
+	if i == nil {
+		return false
+	}
+	return i.EndTimestampMS != nil && i.Ongoing == false
 }
 
 func (i *Interview) HasStarted() bool {
@@ -117,4 +215,19 @@ func (i *Interview) GetEndTimestampS() int64 {
 
 func (i *Interview) Exists() bool {
 	return i != nil
+}
+
+func (i *Interview) GetToken() string {
+	if i == nil || i.Token == nil {
+		return ""
+	}
+	return util.FromPtr(i.Token)
+}
+
+func (i *Interview) ReviewExists() bool {
+	if i == nil {
+		return false
+	}
+
+	return i.ReviewID != nil
 }

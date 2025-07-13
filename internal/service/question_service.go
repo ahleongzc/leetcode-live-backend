@@ -36,10 +36,9 @@ func (q *QuestionServiceImpl) GetOrCreateQuestion(ctx context.Context, externalI
 		return 0, err
 	}
 
-	newQuestion := &entity.Question{
-		ExternalID:  externalID,
-		Description: description,
-	}
+	newQuestion := entity.NewQuestion().
+		SetExternalID(externalID).
+		SetDescription(description)
 
 	id, err := q.questionRepo.Create(ctx, newQuestion)
 	if err != nil {

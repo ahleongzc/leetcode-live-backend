@@ -2309,7 +2309,7 @@ __label__explanation i should probably write down some test cases first
 __label__others i'm having a good day thank you
 __label__explanation the auxiliary space complexity will be ologn for the recursion stack
 __label__explanation i'm going to use a queue to process the elements in order
-__label__explanation given a string columntitle that represents the column title as appear in an excel sheet  return its corresponding column number 
+__label__explanation given a string columnitle that represents the column title as appear in an excel sheet  return its corresponding column number 
 __label__others how do i ensure my solution is robust
 __label__explanation i need to handle potential integer overflow
 __label__others should i include a main function with example usage

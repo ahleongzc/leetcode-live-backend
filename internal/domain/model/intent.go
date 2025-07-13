@@ -51,3 +51,7 @@ func (i *IntentDetail) String() string {
 
 	return res
 }
+
+func (i *IntentDetail) Exists() bool {
+	return i != nil
+}

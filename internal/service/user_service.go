@@ -46,12 +46,11 @@ func (u *UserServiceImpl) GetUserProfile(ctx context.Context, userID uint) (*mod
 		return nil, err
 	}
 
-	userProfile := model.NewUserProfileBuilder().
+	userProfile := model.NewUserProfile().
 		SetEmail(user.Email).
 		SetUsername(user.Username).
 		SetRemainingInterviewCount(setting.RemainingInterviewCount).
-		SetInterviewDurationS(uint(setting.InterviewDurationS)).
-		Build()
+		SetInterviewDurationS(uint(setting.InterviewDurationS))
 
 	return userProfile, nil
 }
@@ -85,10 +84,11 @@ func (u *UserServiceImpl) RegisterNewUser(ctx context.Context, email, password s
 		return nil
 	}
 
-	user := entity.NewUserWithSettingID(settingID)
-	user.SetEmail(email)
-	user.SetPassword(hashedPassword)
-	user.SetUsername(email)
+	user := entity.NewUser().
+		SetSettingID(settingID).
+		SetEmail(email).
+		SetPassword(hashedPassword).
+		SetUsername(email)
 
 	if err := u.userRepo.Create(ctx, user); err != nil {
 		return err

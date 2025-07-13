@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 
-	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
@@ -46,11 +45,12 @@ func (r *ReviewScenarioImpl) HandleAbandonedInterview(ctx context.Context, inter
 		return err
 	}
 
-	review.Score = 0
-	review.Passed = false
-	review.Feedback = "The candidate has abandoned the interview"
+	review.
+		SetScore(0).
+		SetPassed(false).
+		SetFeedback("The candidate has abandoned the interview")
 
-	if err := r.updateReviewAndInterview(ctx, review, interview); err != nil {
+	if err := r.reviewRepo.Update(ctx, review); err != nil {
 		return err
 	}
 
@@ -113,23 +113,12 @@ func (r *ReviewScenarioImpl) ReviewInterviewPerformance(ctx context.Context, int
 		return err
 	}
 
-	review.Score = llmReviewResponse.Score
-	review.Feedback = llmReviewResponse.Feedback
-	review.Passed = llmReviewResponse.Passed
+	review.
+		SetScore(llmReviewResponse.Score).
+		SetFeedback(llmReviewResponse.Feedback).
+		SetPassed(llmReviewResponse.Passed)
 
-	if err := r.updateReviewAndInterview(ctx, review, interview); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (r *ReviewScenarioImpl) updateReviewAndInterview(ctx context.Context, review *entity.Review, interview *entity.Interview) error {
 	if err := r.reviewRepo.Update(ctx, review); err != nil {
-		return err
-	}
-
-	if err := r.interviewRepo.Update(ctx, interview); err != nil {
 		return err
 	}
 

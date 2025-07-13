@@ -5,12 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
-	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 	"github.com/google/uuid"
 
 	"golang.org/x/crypto/bcrypt"
@@ -81,11 +79,11 @@ func (a *AuthServiceImpl) ValidateAndRefreshSessionToken(ctx context.Context, to
 		return "", err
 	}
 
-	if session.ExpireTimestampMS < time.Now().UnixMilli() {
+	if session.IsExpired() {
 		return "", common.ErrUnauthorized
 	}
 
-	session.ExpireTimestampMS = time.Now().Add(48 * time.Hour).UnixMilli()
+	session.AddDayCountToPreviousExpireTimestampMS(2)
 
 	if err := a.sessionRepo.Update(ctx, session); err != nil {
 		return "", err
@@ -115,18 +113,16 @@ func (a *AuthServiceImpl) Login(ctx context.Context, email, password string) (st
 		return "", common.ErrUnauthorized
 	}
 
-	user.LoginCount++
-	user.LastLoginTimeStampMS = util.ToPtr(time.Now().UnixMilli())
+	user.Login()
 
 	if err := a.userRepo.Update(ctx, user); err != nil {
 		return "", err
 	}
 
-	session := &entity.Session{
-		Token:             a.GenerateRandomToken(),
-		UserID:            user.ID,
-		ExpireTimestampMS: time.Now().Add(48 * time.Hour).UnixMilli(),
-	}
+	session := entity.NewSession().
+		SetToken(a.GenerateRandomToken()).
+		SetUserID(user.ID).
+		SetExpireTimestampUsingDays(2)
 
 	err = a.sessionRepo.Create(ctx, session)
 	if err != nil {

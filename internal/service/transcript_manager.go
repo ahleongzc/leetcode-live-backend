@@ -11,9 +11,9 @@ import (
 )
 
 type TranscriptManager interface {
-	Flush(ctx context.Context, interviewID uint) error
+	FlushCandidate(ctx context.Context, interviewID uint) error
 	WriteCandidate(ctx context.Context, interviewID uint, chunk string) error
-	WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string, role entity.Role) error
+	WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string) error
 	GetTranscriptHistory(ctx context.Context, interviewID uint) ([]*entity.Transcript, error)
 	HasSufficientWordsInBuffer(ctx context.Context, interviewID uint) (bool, error)
 	GetSentenceInBuffer(ctx context.Context, interviewID uint) string
@@ -63,15 +63,13 @@ func (t *TranscriptManagerImpl) GetTranscriptHistory(ctx context.Context, interv
 	return t.transcriptRepo.ListByInterviewIDAsc(ctx, interviewID)
 }
 
-func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string, role entity.Role) error {
-	trancript := &entity.Transcript{
-		Role:        role,
-		Content:     strings.TrimSpace(chunk),
-		InterviewID: interviewID,
-		URL:         url,
-	}
+func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string) error {
+	transcript := entity.NewInterviewerTranscript().
+		SetContent(strings.TrimSpace(chunk)).
+		SetInterviewID(interviewID).
+		SetURL(url)
 
-	err := t.transcriptRepo.Create(ctx, trancript)
+	err := t.transcriptRepo.Create(ctx, transcript)
 	if err != nil {
 		return err
 	}
@@ -79,7 +77,7 @@ func (t *TranscriptManagerImpl) WriteInterviewer(ctx context.Context, interviewI
 	return nil
 }
 
-func (t *TranscriptManagerImpl) Flush(ctx context.Context, interviewID uint) error {
+func (t *TranscriptManagerImpl) FlushCandidate(ctx context.Context, interviewID uint) error {
 	t.initialiseBuffer(interviewID)
 	buffer, ok := t.bufferMap[interviewID]
 	if !ok {
@@ -91,11 +89,9 @@ func (t *TranscriptManagerImpl) Flush(ctx context.Context, interviewID uint) err
 		return nil
 	}
 
-	trancript := &entity.Transcript{
-		Role:        entity.USER,
-		Content:     strings.TrimSpace(buffer.String()),
-		InterviewID: interviewID,
-	}
+	trancript := entity.NewCandidateTranscript().
+		SetContent(strings.TrimSpace(buffer.String())).
+		SetInterviewID(interviewID)
 
 	err := t.transcriptRepo.Create(ctx, trancript)
 	if err != nil {

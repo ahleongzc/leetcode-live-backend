@@ -7,42 +7,38 @@ type UserProfile struct {
 	InterviewDurationS      uint   `json:"interview_duration_s"`
 }
 
-type UserProfileBuilder struct {
-	username                string
-	email                   string
-	remainingInterviewCount uint
-	interviewDurationS      uint
+func NewUserProfile() *UserProfile {
+	return &UserProfile{}
 }
 
-func NewUserProfileBuilder() *UserProfileBuilder {
-	return &UserProfileBuilder{}
-}
-
-func (u *UserProfileBuilder) SetUsername(username string) *UserProfileBuilder {
-	u.username = username
-	return u
-}
-
-func (u *UserProfileBuilder) SetEmail(email string) *UserProfileBuilder {
-	u.email = email
-	return u
-}
-
-func (u *UserProfileBuilder) SetRemainingInterviewCount(count uint) *UserProfileBuilder {
-	u.remainingInterviewCount = count
-	return u
-}
-
-func (u *UserProfileBuilder) SetInterviewDurationS(duration uint) *UserProfileBuilder {
-	u.interviewDurationS = duration
-	return u
-}
-
-func (u *UserProfileBuilder) Build() *UserProfile {
-	return &UserProfile{
-		Username:                u.username,
-		Email:                   u.email,
-		RemainingInterviewCount: u.remainingInterviewCount,
-		InterviewDurationS:      u.interviewDurationS,
+func (u *UserProfile) SetUsername(username string) *UserProfile {
+	if u == nil {
+		return nil
 	}
+	u.Username = username
+	return u
+}
+
+func (u *UserProfile) SetEmail(email string) *UserProfile {
+	if u == nil {
+		return nil
+	}
+	u.Email = email
+	return u
+}
+
+func (u *UserProfile) SetRemainingInterviewCount(count uint) *UserProfile {
+	if u == nil {
+		return nil
+	}
+	u.RemainingInterviewCount = count
+	return u
+}
+
+func (u *UserProfile) SetInterviewDurationS(durationSeconds uint) *UserProfile {
+	if u == nil {
+		return nil
+	}
+	u.InterviewDurationS = durationSeconds
+	return u
 }

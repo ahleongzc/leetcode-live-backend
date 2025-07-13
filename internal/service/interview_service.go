@@ -120,13 +120,12 @@ func (i *InterviewServiceImpl) AbandonUnfinishedInterview(ctx context.Context, u
 	}
 
 	var errBadRequest error
-	if interview.SetUpCount >= 3 {
-		return fmt.Errorf("previous set up interview attempt exceeded: %w", common.ErrBadRequest)
+	// TODO: Add a check to reset it the next day
+	if interview.ExceedSetupCountThreshold() {
+		return fmt.Errorf("previous set up interview count exceeded: %w", common.ErrBadRequest)
 	}
 
-	interview.ConsumeToken()
 	interview.Abandon()
-
 	if err := i.interviewRepo.Update(ctx, interview); err != nil {
 		return err
 	}
@@ -171,12 +170,13 @@ func (i *InterviewServiceImpl) GetUnfinishedInterview(ctx context.Context, userI
 		return nil, err
 	}
 
-	interviewModel := &model.Interview{
-		ID:                    interview.UUID,
-		QuestionAttemptNumber: interview.QuestionAttemptNumber,
-		Question:              question.ExternalID,
-		StartTimestampS:       util.ToPtr(interview.GetStartTimesampS()),
-	}
+	// TODO: Currently we are using the question title as the external ID
+	// Have to look into how to extract the 'actual' question ID in the future
+	interviewModel := model.NewInterview().
+		SetID(interview.UUID).
+		SetQuestionAttemptCount(interview.QuestionAttemptCount).
+		SetQuestion(question.ExternalID).
+		SetStartTimestampS(interview.GetStartTimesampS())
 
 	return interviewModel, nil
 }
@@ -207,34 +207,34 @@ func (i *InterviewServiceImpl) getQuestionFromQuestionCacheOrRepo(ctx context.Co
 }
 
 func (i *InterviewServiceImpl) convertInterviewEntityToModel(ctx context.Context, interview *entity.Interview, questionCache map[uint]*entity.Question) (*model.Interview, error) {
-	interviewModel := &model.Interview{
-		ID:                    interview.UUID,
-		QuestionAttemptNumber: interview.QuestionAttemptNumber,
-	}
+	interviewModel := model.NewInterview().
+		SetID(interview.UUID).
+		SetQuestionAttemptCount(interview.QuestionAttemptCount)
 
 	review, err := i.reviewRepo.GetByID(ctx, interview.GetReviewID())
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return nil, err
 	}
 
-	if review != nil {
-		interviewModel.Feedback = util.ToPtr(review.Feedback)
-		interviewModel.Score = util.ToPtr(review.Score)
-		interviewModel.Passed = util.ToPtr(review.Passed)
+	if review.Exists() {
+		interviewModel.
+			SetFeedback(review.Feedback).
+			SetScore(review.Score).
+			SetPassed(review.Passed)
 	}
 
 	question, err := i.getQuestionFromQuestionCacheOrRepo(ctx, interview.QuestionID, questionCache)
 	if err != nil {
 		return nil, err
 	}
-	interviewModel.Question = question.ExternalID
+	interviewModel.SetQuestion(question.ExternalID)
 
-	if interview.StartTimestampMS != nil {
-		interviewModel.StartTimestampS = util.ToPtr(interview.GetStartTimesampS())
+	if interview.HasStarted() {
+		interviewModel.SetStartTimestampS(interview.GetStartTimesampS())
 	}
 
-	if interview.EndTimestampMS != nil {
-		interviewModel.EndTimestampS = util.ToPtr(interview.GetEndTimestampS())
+	if interview.HasEnded() {
+		interviewModel.SetEndTimestampS(interview.GetEndTimestampS())
 	}
 
 	return interviewModel, nil
@@ -248,7 +248,6 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 	}
 
 	result := make([]*model.Interview, 0)
-
 	questionCache := make(map[uint]*entity.Question)
 
 	for _, interview := range interviews {
@@ -259,14 +258,17 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 		result = append(result, interviewModel)
 	}
 
-	return &model.InterviewHistory{Interviews: result},
-		&model.Pagination{
-			Total:   total,
-			Limit:   limit,
-			Offset:  offset,
-			HasNext: offset+limit < total,
-			HasPrev: offset > 0,
-		}, nil
+	pagination := model.NewPagination().
+		SetTotal(total).
+		SetLimit(limit).
+		SetOffset(offset).
+		SetHasNext(offset+limit < total).
+		SetHasPrev(offset > 0)
+
+	history := model.NewInterviewHistory().
+		SetInterviews(result)
+
+	return history, pagination, nil
 }
 
 func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uint, externalQuestionID, description string) (string, error) {
@@ -280,7 +282,7 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return "", err
 	}
 
-	if unfinishedInterview != nil {
+	if unfinishedInterview.Exists() {
 		return "", fmt.Errorf("unfinished interview exists: %w", common.ErrBadRequest)
 	}
 
@@ -289,7 +291,7 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return "", err
 	}
 
-	if unstartedInterview != nil {
+	if unstartedInterview.Exists() {
 		freshToken, err := i.validateInterviewSetUpCount(ctx, unstartedInterview)
 		if err != nil {
 			return "", err
@@ -298,20 +300,17 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return freshToken, nil
 	}
 
-	token := i.authService.GenerateRandomToken()
-
 	questionCount, err := i.interviewRepo.CountByUserIDAndQuestionID(ctx, userID, questionID)
 	if err != nil {
 		return "", err
 	}
 
-	interview := &entity.Interview{
-		UserID:                userID,
-		QuestionID:            questionID,
-		Token:                 util.ToPtr(token),
-		QuestionAttemptNumber: questionCount + 1,
-		SetUpCount:            1,
-	}
+	interview := entity.NewInterview().
+		SetUserID(userID).
+		SetQuestionID(questionID).
+		SetToken(i.authService.GenerateRandomToken()).
+		SetQuestionAttemptCount(questionCount + 1).
+		SetSetupCount(1)
 
 	id, err := i.interviewRepo.Create(ctx, interview)
 	if err != nil {
@@ -322,9 +321,10 @@ func (i *InterviewServiceImpl) SetUpNewInterview(ctx context.Context, userID uin
 		return "", nil
 	}
 
-	return token, nil
+	return interview.GetToken(), nil
 }
 
+// TODO: Add a new method here to process message that are in the buffer after certain delay for better user experience
 func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error) {
 	if err := i.transcriptManager.WriteCandidate(ctx, interviewID, util.FromPtr(message.Chunk)); err != nil {
 		return nil, err
@@ -349,7 +349,7 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 		fmt.Printf("The current message chunk is '%s', the intent is %s with a score of %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), intent, score)
 	}
 
-	if err := i.transcriptManager.Flush(ctx, interviewID); err != nil {
+	if err := i.transcriptManager.FlushCandidate(ctx, interviewID); err != nil {
 		return nil, err
 	}
 
@@ -362,7 +362,7 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 }
 
 func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *model.IntentDetail) (*model.WebSocketMessage, error) {
-	if intent == nil {
+	if !intent.Exists() {
 		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
 	}
 
@@ -386,25 +386,26 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 		return 0, err
 	}
 
-	interview.SetUpCount = 0
+	if !interview.ReviewExists() {
+		review := entity.NewReview().
+			SetFeedback("The interview is still ongoing")
 
-	review := &entity.Review{
-		Feedback: "The interview is still ongoing...",
+		reviewID, err := i.reviewRepo.Create(ctx, review)
+		if err != nil {
+			return 0, err
+		}
+
+		interview.SetReviewID(reviewID)
 	}
-
-	reviewID, err := i.reviewRepo.Create(ctx, review)
-	if err != nil {
-		return 0, err
-	}
-
-	interview.ConsumeToken()
 
 	if !interview.HasStarted() {
 		interview.Start()
 	}
 
-	interview.SetOngoing()
-	interview.ReviewID = util.ToPtr(reviewID)
+	interview.
+		ConsumeToken().
+		SetOngoing().
+		ResetSetupCount()
 
 	err = i.interviewRepo.Update(ctx, interview)
 	if err != nil {
@@ -416,9 +417,9 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 
 // Checks if the set up count is more than a certain number then rejects them, else return a fresh token
 func (i *InterviewServiceImpl) validateInterviewSetUpCount(ctx context.Context, interview *entity.Interview) (string, error) {
-	if interview.SetUpCount >= 3 {
-		if interview.Token != nil {
-			interview.Token = nil
+	if interview.ExceedSetupCountThreshold() {
+		if interview.TokenExists() {
+			interview.ConsumeToken()
 			if err := i.interviewRepo.Update(ctx, interview); err != nil {
 				return "", err
 			}
@@ -428,8 +429,10 @@ func (i *InterviewServiceImpl) validateInterviewSetUpCount(ctx context.Context, 
 	}
 
 	token := i.authService.GenerateRandomToken()
-	interview.SetUpCount++
-	interview.Token = util.ToPtr(token)
+
+	interview.
+		IncrementSetupCount().
+		SetToken(token)
 
 	if err := i.interviewRepo.Update(ctx, interview); err != nil {
 		return "", err
@@ -450,7 +453,7 @@ func (i *InterviewServiceImpl) PrepareToListen(ctx context.Context, interviewID 
 		%s
 	`, description)
 
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, initialTranscript, "", ""); err != nil {
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, initialTranscript, ""); err != nil {
 		return err
 	}
 
@@ -478,7 +481,7 @@ func (i *InterviewServiceImpl) listen(ctx context.Context, interviewID uint) (*m
 
 // CandidateAsksForClarification implements InterviewScenario.
 func (i *InterviewServiceImpl) answer(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
-	err := i.transcriptManager.Flush(ctx, interviewID)
+	err := i.transcriptManager.FlushCandidate(ctx, interviewID)
 	if err != nil {
 		return nil, err
 	}
@@ -534,12 +537,12 @@ func (i *InterviewServiceImpl) answer(ctx context.Context, interviewID uint) (*m
 		return nil, err
 	}
 
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url, entity.ASSISTANT); err != nil {
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url); err != nil {
 		return nil, err
 	}
 
-	return &model.WebSocketMessage{
-		From: model.SERVER,
-		URL:  util.ToPtr(url),
-	}, nil
+	msg := model.NewServerWebsocketMessage().
+		SetURL(url)
+
+	return msg, nil
 }
