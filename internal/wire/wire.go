@@ -33,6 +33,7 @@ func InitializeApplication() (*app.Application, error) {
 		handler.NewUserHandler,
 
 		// Service
+		service.NewAIService,
 		service.NewUserService,
 		service.NewAuthService,
 		service.NewInterviewService,

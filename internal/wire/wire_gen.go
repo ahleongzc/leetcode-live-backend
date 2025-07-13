@@ -45,18 +45,27 @@ func InitializeApplication() (*app.Application, error) {
 	transcriptRepo := repo.NewTranscriptRepo(db)
 	transcriptManager := service.NewTranscriptManager(transcriptRepo)
 	healthHandler := handler.NewHealthHandler(transcriptManager)
-	reviewRepo := repo.NewReviewRepo(db)
-	interviewRepo := repo.NewInterviewRepo(db)
-	llmConfig, err := config.LoadLLMConfig()
+	ttsConfig, err := config.LoadTTSConfig()
 	if err != nil {
 		return nil, err
 	}
 	client := http.NewHTTPCLient()
+	ttsRepo, err := repo.NewTTSRepo(ttsConfig, client)
+	if err != nil {
+		return nil, err
+	}
+	llmConfig, err := config.LoadLLMConfig()
+	if err != nil {
+		return nil, err
+	}
 	llmRepo, err := repo.NewLLMRepo(llmConfig, client)
 	if err != nil {
 		return nil, err
 	}
-	reviewService := service.NewReviewService(reviewRepo, interviewRepo, transcriptManager, llmRepo)
+	aiService := service.NewAIService(ttsRepo, llmRepo)
+	reviewRepo := repo.NewReviewRepo(db)
+	interviewRepo := repo.NewInterviewRepo(db)
+	reviewService := service.NewReviewService(aiService, reviewRepo, interviewRepo, transcriptManager)
 	messageQueueConfig, err := config.LoadMessageQueueConfig()
 	if err != nil {
 		return nil, err
@@ -66,14 +75,6 @@ func InitializeApplication() (*app.Application, error) {
 	websocketConfig := config.LoadWebsocketConfig()
 	questionRepo := repo.NewQuestionRepo(db)
 	questionService := service.NewQuestionService(questionRepo)
-	ttsConfig, err := config.LoadTTSConfig()
-	if err != nil {
-		return nil, err
-	}
-	ttsRepo, err := repo.NewTTSRepo(ttsConfig, client)
-	if err != nil {
-		return nil, err
-	}
 	objectStorageConfig, err := config.LoadObjectStorageConfig()
 	if err != nil {
 		return nil, err
@@ -92,7 +93,7 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
-	interviewService := service.NewInterviewService(userService, authService, reviewService, questionService, transcriptManager, ttsRepo, llmRepo, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
+	interviewService := service.NewInterviewService(aiService, userService, authService, reviewService, questionService, transcriptManager, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
