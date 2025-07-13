@@ -37,6 +37,10 @@ func (i *Interview) ExceedSetupCountThreshold() bool {
 	return i.SetupCount >= 3
 }
 
+func (i *Interview) GetTimeRemainingS() uint {
+	return i.AllocatedDurationS - i.ElapsedTimeS - uint(util.MillisToSeconds(time.Now().UnixMilli()-i.UpdateTimestampMS))
+}
+
 func (i *Interview) TimesUp() bool {
 	if i == nil {
 		return true

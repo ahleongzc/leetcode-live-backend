@@ -198,7 +198,8 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 		i.writePump(ctx, conn, respondChan, errChan, closeChan)
 	}()
 
-	go i.timeChecker(ctx, interview.ID, respondChan, errChan)
+	fmt.Println("The time remaining is ", interview.GetTimeRemainingS())
+	go i.countdownTimer(ctx, interview.ID, interview.GetTimeRemainingS(), respondChan, errChan)
 
 	select {
 	case <-ctx.Done():
@@ -215,24 +216,22 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 }
 
 // This go routine doesn't close the respond chan because the main writer to the respond chan is the readPump
-func (i *InterviewHandler) timeChecker(
+func (i *InterviewHandler) countdownTimer(
 	ctx context.Context,
 	interviewID uint,
+	timeRemainingS uint,
 	respondChan chan *model.WebSocketMessage,
 	errChan chan error,
 ) {
-	t := time.NewTicker(1 * time.Second)
+	t := time.NewTimer(time.Duration(timeRemainingS) * time.Second)
 	defer t.Stop()
-	for range t.C {
-		timeIsUp, msg, err := i.interviewService.TimeChecker(ctx, interviewID)
-		if err != nil {
-			errChan <- err
-		}
-		if timeIsUp {
-			respondChan <- msg
-			return
-		}
+	<-t.C
+	msg, err := i.interviewService.HandleInterviewTimesUp(ctx, interviewID)
+	if err != nil {
+		errChan <- err
+		return
 	}
+	respondChan <- msg
 }
 
 func (i *InterviewHandler) readPump(

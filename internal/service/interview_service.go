@@ -14,7 +14,7 @@ import (
 
 type InterviewService interface {
 	ConsumeTokenAndStartInterview(ctx context.Context, token string) (*entity.Interview, error)
-	TimeChecker(ctx context.Context, interviewID uint) (bool, *model.WebSocketMessage, error)
+	HandleInterviewTimesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	PrepareToListen(ctx context.Context, interviewID uint) error
 	PauseCandidateOngoingInterview(ctx context.Context, userID uint) error
 	AbandonCandidateUnfinishedInterview(ctx context.Context, userID uint) error
@@ -76,32 +76,28 @@ type InterviewServiceImpl struct {
 }
 
 // TimeChecker implements InterviewService.
-func (i *InterviewServiceImpl) TimeChecker(ctx context.Context, interviewID uint) (bool, *model.WebSocketMessage, error) {
+func (i *InterviewServiceImpl) HandleInterviewTimesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	ongoingInterview, err := i.interviewRepo.GetByID(ctx, interviewID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
-		return true, nil, err
+		return nil, err
 	}
 
 	if !ongoingInterview.Exists() {
-		return true, nil, fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
-	}
-
-	if !ongoingInterview.TimesUp() {
-		return false, nil, nil
+		return nil, fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
 	}
 
 	ongoingInterview.End()
 
 	if err := i.interviewRepo.Update(ctx, ongoingInterview); err != nil {
-		return true, nil, err
+		return nil, err
 	}
 
 	msg, err := i.timesUp(ctx, interviewID)
 	if err != nil {
-		return true, nil, nil
+		return nil, nil
 	}
 
-	return true, msg, nil
+	return msg, nil
 }
 
 // PauseOngoingInterview implements InterviewService.
