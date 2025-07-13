@@ -198,7 +198,6 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 		i.writePump(ctx, conn, respondChan, errChan, closeChan)
 	}()
 
-	fmt.Println("The time remaining is ", interview.GetTimeRemainingS())
 	go i.countdownTimer(ctx, interview.ID, interview.GetTimeRemainingS(), respondChan, errChan)
 
 	select {

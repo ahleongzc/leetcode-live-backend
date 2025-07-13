@@ -30,10 +30,19 @@ type Interview struct {
 	Feedback             *string `json:"feedback"`
 	StartTimestampS      *int64  `json:"start_timestamp_s"`
 	EndTimestampS        *int64  `json:"end_timestamp_s"`
+	TimeRemainingS       *uint   `json:"time_remaining_s"`
 }
 
 func NewInterview() *Interview {
 	return &Interview{}
+}
+
+func (i *Interview) SetTimeRemainingS(seconds uint) *Interview {
+	if i == nil {
+		return nil
+	}
+	i.TimeRemainingS = util.ToPtr(seconds)
+	return i
 }
 
 // Pass in the UUID here, never use internal id for display

@@ -203,18 +203,10 @@ func (i *InterviewServiceImpl) GetCandidateUnfinishedInterview(ctx context.Conte
 		return nil, nil
 	}
 
-	question, err := i.questionRepo.GetByID(ctx, interview.QuestionID)
+	interviewModel, err := i.convertInterviewEntityToModel(ctx, interview, nil)
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: Currently we are using the question title as the external ID
-	// Have to look into how to extract the 'actual' question ID in the future
-	interviewModel := model.NewInterview().
-		SetID(interview.UUID).
-		SetQuestionAttemptCount(interview.QuestionAttemptCount).
-		SetQuestion(question.ExternalID).
-		SetStartTimestampS(interview.GetStartTimesampS())
 
 	return interviewModel, nil
 }
@@ -247,7 +239,8 @@ func (i *InterviewServiceImpl) getQuestionFromQuestionCacheOrRepo(ctx context.Co
 func (i *InterviewServiceImpl) convertInterviewEntityToModel(ctx context.Context, interview *entity.Interview, questionCache map[uint]*entity.Question) (*model.Interview, error) {
 	interviewModel := model.NewInterview().
 		SetID(interview.UUID).
-		SetQuestionAttemptCount(interview.QuestionAttemptCount)
+		SetQuestionAttemptCount(interview.QuestionAttemptCount).
+		SetTimeRemainingS(interview.GetTimeRemainingS())
 
 	review, err := i.reviewRepo.GetByID(ctx, interview.GetReviewID())
 	if err != nil && !errors.Is(err, common.ErrNotFound) {

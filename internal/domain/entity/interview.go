@@ -45,9 +45,7 @@ func (i *Interview) TimesUp() bool {
 	if i == nil {
 		return true
 	}
-
-	timeRemainingS := i.AllocatedDurationS - i.ElapsedTimeS - uint(util.MillisToSeconds(time.Now().UnixMilli()-i.UpdateTimestampMS))
-
+	timeRemainingS := i.GetTimeRemainingS()
 	return timeRemainingS <= 0
 }
 
