@@ -28,12 +28,12 @@ type QuestionServiceImpl struct {
 
 func (q *QuestionServiceImpl) GetOrCreateQuestion(ctx context.Context, externalID string, description string) (uint, error) {
 	question, err := q.questionRepo.GetByExternalID(ctx, externalID)
-	if nil == err {
-		return question.ID, nil
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
+		return 0, err
 	}
 
-	if !errors.Is(err, common.ErrNotFound) {
-		return 0, err
+	if question.Exists() {
+		return question.ID, nil
 	}
 
 	newQuestion := entity.NewQuestion().

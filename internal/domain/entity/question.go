@@ -25,3 +25,7 @@ func (q *Question) SetDescription(description string) *Question {
 	q.SetDescription(description)
 	return q
 }
+
+func (q *Question) Exists() bool {
+	return q != nil
+}
