@@ -1,10 +1,6 @@
 package model
 
-import (
-	"fmt"
-
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-)
+import "time"
 
 type LLMRole string
 
@@ -16,6 +12,20 @@ const (
 
 type ChatCompletionsRequest struct {
 	Messages []*LLMMessage
+}
+
+func NewChatCompletionsRequest() *ChatCompletionsRequest {
+	return &ChatCompletionsRequest{
+		Messages: make([]*LLMMessage, 0),
+	}
+}
+
+func (c *ChatCompletionsRequest) SetMessages(messages []*LLMMessage) *ChatCompletionsRequest {
+	if c == nil {
+		return nil
+	}
+	c.Messages = append(c.Messages, messages...)
+	return c
 }
 
 func (c *ChatCompletionsRequest) GetMessages() []*LLMMessage {
@@ -47,11 +57,24 @@ func (l *LLMMessage) GetContent() string {
 	return l.Content
 }
 
-func NewMessage(role LLMRole, content string) *LLMMessage {
-	return &LLMMessage{
-		Role:    role,
-		Content: content,
+func NewLLMMessage() *LLMMessage {
+	return &LLMMessage{}
+}
+
+func (l *LLMMessage) SetRole(role LLMRole) *LLMMessage {
+	if l == nil {
+		return nil
 	}
+	l.Role = role
+	return l
+}
+
+func (l *LLMMessage) SetContent(content string) *LLMMessage {
+	if l == nil {
+		return nil
+	}
+	l.Content = content
+	return l
 }
 
 type ChatCompletionsResponse struct {
@@ -61,16 +84,14 @@ type ChatCompletionsResponse struct {
 
 func NewChatCompletionsResponse() *ChatCompletionsResponse {
 	return &ChatCompletionsResponse{
-		Choices: make([]*Choice, 0),
+		CreatedTimestampMS: time.Now().UnixMilli(),
+		Choices:            make([]*Choice, 0),
 	}
 }
 
-func (c *ChatCompletionsResponse) AddChoice(choice *Choice) error {
-	if c == nil {
-		return fmt.Errorf("unable to add choice to nil chatCompletionsResponseModel %w", common.ErrInternalServerError)
-	}
-	if choice == nil {
-		return fmt.Errorf("trying to add nil choice to chatCompletionsResponseModel %w", common.ErrInternalServerError)
+func (c *ChatCompletionsResponse) AppendChoice(choice *Choice) *ChatCompletionsResponse {
+	if c == nil || choice == nil {
+		return nil
 	}
 
 	if c.Choices == nil {
@@ -78,7 +99,7 @@ func (c *ChatCompletionsResponse) AddChoice(choice *Choice) error {
 	}
 
 	c.Choices = append(c.Choices, choice)
-	return nil
+	return c
 }
 
 func (c *ChatCompletionsResponse) GetResponse() *LLMMessage {
@@ -88,7 +109,6 @@ func (c *ChatCompletionsResponse) GetResponse() *LLMMessage {
 	if len(c.Choices) == 0 {
 		return nil
 	}
-
 	return c.Choices[0].GetMessage()
 }
 
@@ -97,17 +117,29 @@ type Choice struct {
 	Message *LLMMessage
 }
 
-func NewChoice(index int, message *LLMMessage) *Choice {
-	return &Choice{
-		Index:   index,
-		Message: message,
+func NewChoice() *Choice {
+	return &Choice{}
+}
+
+func (c *Choice) SetIndex(index int) *Choice {
+	if c == nil {
+		return nil
 	}
+	c.Index = index
+	return c
+}
+
+func (c *Choice) SetMessage(message *LLMMessage) *Choice {
+	if c == nil {
+		return nil
+	}
+	c.Message = message
+	return c
 }
 
 func (c *Choice) GetMessage() *LLMMessage {
 	if c == nil {
 		return nil
 	}
-
 	return c.Message
 }

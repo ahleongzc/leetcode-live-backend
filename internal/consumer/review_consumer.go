@@ -54,37 +54,40 @@ func (r *ReviewConsumer) ConsumeAndProcess(ctx context.Context, workerCount uint
 				case <-ctx.Done():
 					return
 				case delivery := <-deliveryChan:
-					defer func() {
-						if err := recover(); err != nil {
-							stackTrace := debug.Stack()
-							r.logger.Error().
-								Interface("panic", err).
-								Bytes("stackTrace", stackTrace).
-								Uint("workerNumber", i).
-								Msg("panic recovered when consuming messages")
-
-							if err := delivery.Nack(true); err != nil {
-								r.logger.Error().Err(err).Msg("failed to nack message after panic")
-							}
-						}
-					}()
-
-					reviewMessage := &model.ReviewMessage{}
-					if err := json.Unmarshal(delivery.Body, reviewMessage); err != nil {
-						r.logger.Error().Err(err).Msg("unable to marshal review message")
-						delivery.Nack(true)
-						continue
-					}
-
-					if err := r.reviewService.ReviewInterviewPerformance(ctx, reviewMessage.InterviewID); err != nil {
-						r.logger.Error().Err(err).Msg("unable to review interview performance")
-						delivery.Nack(true)
-						continue
-					}
-
-					delivery.Ack()
+					r.processMessage(ctx, delivery)
 				}
 			}
 		}()
 	}
+}
+
+func (r *ReviewConsumer) processMessage(ctx context.Context, delivery *model.Delivery) {
+	defer func() {
+		if err := recover(); err != nil {
+			stackTrace := debug.Stack()
+			r.logger.Error().
+				Interface("panic", err).
+				Bytes("stackTrace", stackTrace).
+				Msg("panic recovered when consuming messages")
+
+			if err := delivery.Nack(true); err != nil {
+				r.logger.Error().Err(err).Msg("failed to nack message after panic")
+			}
+		}
+	}()
+
+	reviewMessage := &model.ReviewMessage{}
+	if err := json.Unmarshal(delivery.Body, reviewMessage); err != nil {
+		r.logger.Error().Err(err).Msg("unable to marshal review message")
+		delivery.Nack(true)
+		return
+	}
+
+	if err := r.reviewService.ReviewInterviewPerformance(ctx, reviewMessage.InterviewID); err != nil {
+		r.logger.Error().Err(err).Msg("unable to review interview performance")
+		delivery.Nack(true)
+		return
+	}
+
+	delivery.Ack()
 }

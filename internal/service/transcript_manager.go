@@ -7,6 +7,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 )
 
@@ -14,8 +15,11 @@ type TranscriptManager interface {
 	FlushCandidateAndRemoveInterview(ctx context.Context, interviewID uint) error
 	FlushCandidate(ctx context.Context, interviewID uint) error
 	WriteCandidate(ctx context.Context, interviewID uint, chunk string) error
-	WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string) error
+	WriteInterviewer(ctx context.Context, interviewID uint, message, url string) error
+	// This sets up the system prompt for the LLM
+	PrepareInterviewer(ctx context.Context, interviewID uint, prompt string) error
 	GetTranscriptHistory(ctx context.Context, interviewID uint) ([]*entity.Transcript, error)
+	GetTranscriptHistoryInLLMMessageFormat(ctx context.Context, interviewID uint) ([]*model.LLMMessage, error)
 	HasSufficientWordsInBuffer(ctx context.Context, interviewID uint) (bool, error)
 	GetSentenceInBuffer(ctx context.Context, interviewID uint) string
 	// Returns the size of the hashmap
@@ -34,6 +38,34 @@ func NewTranscriptManager(
 type TranscriptManagerImpl struct {
 	transcriptRepo repo.TranscriptRepo
 	bufferMap      map[uint]*strings.Builder
+}
+
+// PrepareInterviewer implements TranscriptManager.
+func (t *TranscriptManagerImpl) PrepareInterviewer(ctx context.Context, interviewID uint, prompt string) error {
+	transcript := entity.NewTranscript().
+		SetRole(entity.SYSTEM).
+		SetContent(prompt).
+		SetInterviewID(interviewID)
+
+	if err := t.transcriptRepo.Create(ctx, transcript); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (t *TranscriptManagerImpl) GetTranscriptHistoryInLLMMessageFormat(ctx context.Context, interviewID uint) ([]*model.LLMMessage, error) {
+	transcriptHistory, err := t.transcriptRepo.ListByInterviewIDAsc(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	llmMessages := make([]*model.LLMMessage, 0)
+	for _, transcript := range transcriptHistory {
+		llmMessages = append(llmMessages, transcript.ToLLMMessage())
+	}
+
+	return llmMessages, nil
 }
 
 // FlushAndRemoveInterview implements TranscriptManager.

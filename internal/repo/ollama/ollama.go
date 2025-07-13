@@ -152,10 +152,12 @@ func (o *OllamaMessage) convertToMessage() (*model.LLMMessage, error) {
 	if o == nil {
 		return nil, fmt.Errorf("cannot convert nil ollamaMessage into message: %w", common.ErrInternalServerError)
 	}
-	return &model.LLMMessage{
-		Role:    model.LLMRole(o.Role),
-		Content: o.Content,
-	}, nil
+
+	message := model.NewLLMMessage().
+		SetRole(model.LLMRole(o.Role)).
+		SetContent(o.Content)
+
+	return message, nil
 }
 
 func (o *OllamaChoice) convertToChoice() (*model.Choice, error) {
@@ -167,10 +169,11 @@ func (o *OllamaChoice) convertToChoice() (*model.Choice, error) {
 		return nil, err
 	}
 
-	return &model.Choice{
-		Index:   o.Index,
-		Message: message,
-	}, nil
+	choice := model.NewChoice().
+		SetIndex(o.Index).
+		SetMessage(message)
+
+	return choice, nil
 }
 
 func (o *Ollama) convertToChatCompletionsResponseModel(ollamaResp *OllamaChatCompletionsResponse) (*model.ChatCompletionsResponse, error) {
@@ -181,7 +184,7 @@ func (o *Ollama) convertToChatCompletionsResponseModel(ollamaResp *OllamaChatCom
 		if err != nil {
 			return nil, fmt.Errorf("%s, %w", err.Error(), common.ErrInternalServerError)
 		}
-		chatCompletionsResponseModel.AddChoice(choice)
+		chatCompletionsResponseModel.AppendChoice(choice)
 	}
 
 	return chatCompletionsResponseModel, nil

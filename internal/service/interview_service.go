@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
@@ -28,13 +30,12 @@ type InterviewService interface {
 }
 
 func NewInterviewService(
+	aiService AIService,
 	userService UserService,
 	authService AuthService,
 	reviewService ReviewService,
 	questionService QuestionService,
 	transcriptManager TranscriptManager,
-	ttsRepo repo.TTSRepo,
-	llmRepo repo.LLMRepo,
 	fileRepo repo.FileRepo,
 	reviewRepo repo.ReviewRepo,
 	questionRepo repo.QuestionRepo,
@@ -43,13 +44,12 @@ func NewInterviewService(
 	intentClassificationRepo repo.IntentClassificationRepo,
 ) InterviewService {
 	return &InterviewServiceImpl{
+		aiService:                aiService,
 		authService:              authService,
 		userService:              userService,
 		reviewService:            reviewService,
 		questionService:          questionService,
 		transcriptManager:        transcriptManager,
-		ttsRepo:                  ttsRepo,
-		llmRepo:                  llmRepo,
 		fileRepo:                 fileRepo,
 		reviewRepo:               reviewRepo,
 		questionRepo:             questionRepo,
@@ -60,13 +60,12 @@ func NewInterviewService(
 }
 
 type InterviewServiceImpl struct {
+	aiService                AIService
 	userService              UserService
 	authService              AuthService
 	reviewService            ReviewService
 	questionService          QuestionService
 	transcriptManager        TranscriptManager
-	ttsRepo                  repo.TTSRepo
-	llmRepo                  repo.LLMRepo
 	fileRepo                 repo.FileRepo
 	reviewRepo               repo.ReviewRepo
 	questionRepo             repo.QuestionRepo
@@ -124,7 +123,6 @@ func (i *InterviewServiceImpl) PauseCandidateOngoingInterview(ctx context.Contex
 	return nil
 }
 
-// GetOngoingInterview implements InterviewService.
 func (i *InterviewServiceImpl) GetCandidateOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error) {
 	ongoingInterview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
@@ -143,7 +141,6 @@ func (i *InterviewServiceImpl) GetCandidateOngoingInterview(ctx context.Context,
 	return interviewModel, nil
 }
 
-// AbandonOngoingInterview implements InterviewService.
 func (i *InterviewServiceImpl) AbandonCandidateUnfinishedInterview(ctx context.Context, userID uint) error {
 	interview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
 	if err != nil {
@@ -178,11 +175,12 @@ func (i *InterviewServiceImpl) AbandonCandidateUnfinishedInterview(ctx context.C
 // SetUpOngoingInterview implements InterviewService.
 func (i *InterviewServiceImpl) SetUpCandidateUnfinishedInterview(ctx context.Context, userID uint) (string, error) {
 	unfinishedInterview, err := i.interviewRepo.GetUnfinishedInterviewByUserID(ctx, userID)
-	if err != nil {
-		if errors.Is(err, common.ErrNotFound) {
-			return "", fmt.Errorf("there is no unfinished interview :%w", common.ErrBadRequest)
-		}
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return "", err
+	}
+
+	if !unfinishedInterview.Exists() {
+		return "", fmt.Errorf("there is no unfinished interview :%w", common.ErrBadRequest)
 	}
 
 	freshToken, err := i.validateInterviewSetUpCount(ctx, unfinishedInterview)
@@ -258,6 +256,7 @@ func (i *InterviewServiceImpl) convertInterviewEntityToModel(ctx context.Context
 	if err != nil {
 		return nil, err
 	}
+
 	interviewModel.SetQuestion(question.ExternalID)
 
 	if interview.HasStarted() {
@@ -278,7 +277,7 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 		return nil, nil, err
 	}
 
-	result := make([]*model.Interview, 0)
+	interviewModels := make([]*model.Interview, 0)
 	questionCache := make(map[uint]*entity.Question)
 
 	for _, interview := range interviews {
@@ -286,7 +285,7 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 		if err != nil {
 			return nil, nil, err
 		}
-		result = append(result, interviewModel)
+		interviewModels = append(interviewModels, interviewModel)
 	}
 
 	pagination := model.NewPagination().
@@ -297,7 +296,7 @@ func (i *InterviewServiceImpl) GetHistory(ctx context.Context, userID, limit, of
 		SetHasPrev(offset > 0)
 
 	history := model.NewInterviewHistory().
-		SetInterviews(result)
+		SetInterviews(interviewModels)
 
 	return history, pagination, nil
 }
@@ -381,8 +380,10 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 		return nil, err
 	}
 
-	intentInfo, score := intent.GetIntentWithHighestConfidenceScoreWithScore()
-	fmt.Printf("The current message chunk is '%s', the intent is %s with a score of %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), intentInfo, score)
+	if util.IsDevEnv() {
+		intent, score := intent.GetIntentWithHighestConfidenceScoreWithScore()
+		fmt.Printf("The current message chunk is '%s', the intent is %s with a score of %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), intent, score)
+	}
 
 	if err := i.transcriptManager.FlushCandidate(ctx, interviewID); err != nil {
 		return nil, err
@@ -412,13 +413,15 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uin
 	return nil, fmt.Errorf("invalid intent %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
 }
 
+// The validation have to happen here as websockets can only pass the token in query params
 func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context, token string) (*entity.Interview, error) {
 	interview, err := i.interviewRepo.GetByToken(ctx, token)
-	if err != nil {
-		if errors.Is(err, common.ErrNotFound) {
-			return nil, common.ErrUnauthorized
-		}
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return nil, err
+	}
+
+	if !interview.Exists() {
+		return nil, common.ErrUnauthorized
 	}
 
 	if !interview.ReviewExists() {
@@ -482,13 +485,13 @@ func (i *InterviewServiceImpl) PrepareToListen(ctx context.Context, interviewID 
 		return err
 	}
 
-	initialTranscript := fmt.Sprintf(`
+	prompt := fmt.Sprintf(`
 		You are a senior software engineer conducting a LeetCode-style technical interview with a candidate.
 		You have already prepared the question for the candidate, and the description of the question is as follow:
 		%s
 	`, description)
 
-	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, initialTranscript, ""); err != nil {
+	if err := i.transcriptManager.PrepareInterviewer(ctx, interviewID, prompt); err != nil {
 		return err
 	}
 
@@ -509,7 +512,7 @@ func (i *InterviewServiceImpl) getInterviewQuestionDescription(ctx context.Conte
 	return question.Description, nil
 }
 
-// ListenToCandidate implements InterviewScenario.
+// TODO: Add more functionalities here like logging?
 func (i *InterviewServiceImpl) listen(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	return nil, nil
 }
@@ -519,50 +522,23 @@ func (i *InterviewServiceImpl) timesUp(ctx context.Context, interviewID uint) (*
 		return nil, err
 	}
 
-	llmMessages := make([]*model.LLMMessage, 0)
-	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
+	prompt := `
+		The interview time is up.
+		You need to thank the candidate for their time for attempting the interview and remind them that you will review the entire process and give him an appropriate score later.
+		Be clear, concise, and professional — just like you would be in a real interview.
+	`
+
+	replyToCandidate, err := i.generateTextReply(ctx, prompt, interviewID)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, transcript := range history {
-		llmMessages = append(llmMessages, transcript.ToLLMMessage())
-	}
-
-	llmMessages = append(llmMessages, &model.LLMMessage{
-		Role: model.SYSTEM,
-		Content: `
-			The interview's time is up now. 
-			You need to thank the candidate for their time for attempting the interview and remind them that you will review the entire process and give him an appropriate score later.
-			Be clear, concise, and professional — just like you would be in a real interview.
-		`,
-	})
-
-	req := &model.ChatCompletionsRequest{
-		Messages: llmMessages,
-	}
-
-	resp, err := i.llmRepo.ChatCompletions(ctx, req)
+	reader, err := i.generateSpeechReply(ctx, replyToCandidate)
 	if err != nil {
 		return nil, err
 	}
 
-	replyToCandidate := resp.GetResponse().GetContent()
-
-	reader, err := i.ttsRepo.TextToSpeechReader(
-		ctx, replyToCandidate, `
-			You are a senior software engineer conducting a LeetCode-style technical interview. 
-			Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
-			Pause briefly between key points. 
-			Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.
-		`,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Make the file name follow a structure
-	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	url, err := i.uploadVoiceReply(ctx, interviewID, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -580,58 +556,25 @@ func (i *InterviewServiceImpl) timesUp(ctx context.Context, interviewID uint) (*
 
 // CandidateAsksForClarification implements InterviewScenario.
 func (i *InterviewServiceImpl) answer(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
-	err := i.transcriptManager.FlushCandidate(ctx, interviewID)
+	prompt := `
+		Based on the transcript history, you are now tasked to reply to the candidate.
+		If the candidate is asking for a hint, you must answer in a way that helps them better understand the problem without giving away the solution.
+		Provide only as much information as needed to address their question directly.
+		Avoid adding extra hints or restating parts of the problem unless it's necessary for clarification.
+		If the candidate asks about constraints, clarification on the problem, edge cases, or assumptions, answer truthfully and succinctly.
+		Be clear, concise, and professional — just like you would be in a real interview.
+	`
+	replyToCandidate, err := i.generateTextReply(ctx, prompt, interviewID)
 	if err != nil {
 		return nil, err
 	}
 
-	llmMessages := make([]*model.LLMMessage, 0)
-	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
+	reader, err := i.generateSpeechReply(ctx, replyToCandidate)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, transcript := range history {
-		llmMessages = append(llmMessages, transcript.ToLLMMessage())
-	}
-
-	llmMessages = append(llmMessages, &model.LLMMessage{
-		Role: model.SYSTEM,
-		Content: `
-			You are now tasked to answer any questions from the candidate in a way that helps them better understand the problem without giving away the solution.
-			Be clear, concise, and professional — just like you would be in a real interview.
-			Provide only as much information as needed to address their question directly.
-			Avoid adding extra hints or restating parts of the problem unless it's necessary for clarification.
-			If the candidate asks about constraints, edge cases, or assumptions, answer truthfully and succinctly.
-			Keep your tone supportive but neutral — you're here to evaluate and guide, not to teach.
-		`,
-	})
-
-	req := &model.ChatCompletionsRequest{
-		Messages: llmMessages,
-	}
-
-	resp, err := i.llmRepo.ChatCompletions(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-
-	replyToCandidate := resp.GetResponse().GetContent()
-
-	reader, err := i.ttsRepo.TextToSpeechReader(
-		ctx, replyToCandidate, `
-			You are a senior software engineer conducting a LeetCode-style technical interview. 
-			Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
-			Pause briefly between key points. 
-			Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.
-		`,
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	// TODO: Make the file name follow a structure
-	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	url, err := i.uploadVoiceReply(ctx, interviewID, reader)
 	if err != nil {
 		return nil, err
 	}
@@ -644,4 +587,56 @@ func (i *InterviewServiceImpl) answer(ctx context.Context, interviewID uint) (*m
 		SetURL(url)
 
 	return msg, nil
+}
+
+func (i *InterviewServiceImpl) generateSpeechReply(ctx context.Context, content string) (io.Reader, error) {
+	instruction := `
+		You are a senior software engineer conducting a LeetCode-style technical interview. 
+		Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+		Pause briefly between key points. 
+		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.
+	`
+
+	reader, err := i.aiService.GenerateSpeechReply(ctx, content, instruction)
+	if err != nil {
+		return nil, err
+	}
+
+	return reader, nil
+}
+
+func (i *InterviewServiceImpl) uploadVoiceReply(ctx context.Context, interviewID uint, reader io.Reader) (string, error) {
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return "", err
+	}
+
+	path := fmt.Sprintf("%d/%d/%d.mp3", interview.UserID, interviewID, time.Now().UnixMilli())
+
+	url, err := i.fileRepo.Upload(ctx, path, reader, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return url, nil
+}
+
+func (i *InterviewServiceImpl) generateTextReply(ctx context.Context, prompt string, interviewID uint) (string, error) {
+	llmMessages, err := i.transcriptManager.GetTranscriptHistoryInLLMMessageFormat(ctx, interviewID)
+	if err != nil {
+		return "", err
+	}
+
+	latestPrompt := model.NewLLMMessage().
+		SetRole(model.ASSISTANT).
+		SetContent(prompt)
+
+	llmMessages = append(llmMessages, latestPrompt)
+
+	replyToCandidate, err := i.aiService.GenerateTextReply(ctx, llmMessages)
+	if err != nil {
+		return "", err
+	}
+
+	return replyToCandidate, nil
 }

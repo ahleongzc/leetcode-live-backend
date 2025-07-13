@@ -22,7 +22,8 @@ func (i *InterviewHistory) SetInterviews(interviews []*Interview) *InterviewHist
 
 type Interview struct {
 	// This field uses the UUID of the interview for display purposes
-	ID                   string  `json:"id"`
+	ID string `json:"id"`
+	// TODO: This field currently uses the external question ID as the question field, need to see how to change this in the future
 	Question             string  `json:"question"`
 	QuestionAttemptCount uint    `json:"question_attempt_count"`
 	Score                *uint   `json:"score"`
