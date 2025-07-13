@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
@@ -34,22 +35,6 @@ func NewInterviewHandler(
 		interviewService: interviewService,
 		logger:           logger,
 	}
-}
-
-func (i *InterviewHandler) EndOngoingInterview(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	userID, err := util.GetUserID(ctx)
-	if err != nil {
-		HandleErrorResponseHTTP(w, err)
-		return
-	}
-
-	if err := i.interviewService.EndCandidateOngoingInterview(ctx, userID); err != nil {
-		HandleErrorResponseHTTP(w, err)
-		return
-	}
-
-	WriteJSONHTTP(w, nil, http.StatusOK, nil)
 }
 
 func (i *InterviewHandler) GetOngoingInterview(w http.ResponseWriter, r *http.Request) {
@@ -213,10 +198,13 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 		i.writePump(ctx, conn, respondChan, errChan, closeChan)
 	}()
 
+	go i.timeChecker(ctx, interview.ID, respondChan, errChan)
+
 	select {
 	case <-ctx.Done():
 	case <-closeChan:
 		conn.Close(websocket.StatusNormalClosure, "interview ended")
+		cancel()
 	case err := <-errChan:
 		i.interviewService.PauseCandidateOngoingInterview(ctx, interview.UserID)
 		HandleErrorResponeWebsocket(ctx, conn, err)
@@ -224,6 +212,27 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	}
 
 	i.logger.Info().Msg(fmt.Sprintf("websocket connection closed for %s", r.RemoteAddr))
+}
+
+// This go routine doesn't close the respond chan because the main writer to the respond chan is the readPump
+func (i *InterviewHandler) timeChecker(
+	ctx context.Context,
+	interviewID uint,
+	respondChan chan *model.WebSocketMessage,
+	errChan chan error,
+) {
+	t := time.NewTicker(1 * time.Second)
+	defer t.Stop()
+	for range t.C {
+		timeIsUp, msg, err := i.interviewService.TimeChecker(ctx, interviewID)
+		if err != nil {
+			errChan <- err
+		}
+		if timeIsUp {
+			respondChan <- msg
+			return
+		}
+	}
 }
 
 func (i *InterviewHandler) readPump(

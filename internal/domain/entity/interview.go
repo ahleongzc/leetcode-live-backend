@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
@@ -36,6 +35,16 @@ func NewInterview() *Interview {
 // The client should join immediately after the initial set up, because the join interview will reset the setup count
 func (i *Interview) ExceedSetupCountThreshold() bool {
 	return i.SetupCount >= 3
+}
+
+func (i *Interview) TimesUp() bool {
+	if i == nil {
+		return true
+	}
+
+	timeRemainingS := i.AllocatedDurationS - i.ElapsedTimeS - uint(util.MillisToSeconds(time.Now().UnixMilli()-i.UpdateTimestampMS))
+
+	return timeRemainingS <= 0
 }
 
 func (i *Interview) SetAllocatedDurationS(durationSeconds uint) *Interview {
@@ -142,7 +151,7 @@ func (i *Interview) IsUnfinished() bool {
 	return i.StartTimestampMS != nil && i.EndTimestampMS == nil
 }
 
-// Note that the logic for abandon and update seems similar, 
+// Note that the logic for abandon and update seems similar,
 // but the key difference is that abandoning an interview doesn't update the elapsed duration
 func (i *Interview) Abandon() *Interview {
 	if i == nil {
@@ -204,12 +213,6 @@ func (i *Interview) UpdateElapsedTimeS() {
 
 	durationS := util.MillisToSeconds(time.Now().UnixMilli() - i.UpdateTimestampMS)
 	i.ElapsedTimeS += uint(durationS)
-
-	fmt.Println("updating the elapsed time")
-	fmt.Println("the time now is ", util.ConvertUnixMilliToHumanReadableFormat(time.Now().UnixMilli()))
-	fmt.Println("the update time is ", util.ConvertUnixMilliToHumanReadableFormat(i.UpdateTimestampMS))
-	fmt.Println("the elapsed time is ", durationS)
-	fmt.Println("the total elapsed time is ", i.ElapsedTimeS)
 }
 
 func (i *Interview) HasEnded() bool {

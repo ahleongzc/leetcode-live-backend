@@ -42,11 +42,11 @@ func InitializeApplication() (*app.Application, error) {
 	userHandler := handler.NewUserHandler(userService)
 	logger := zerolog.NewZerologLogger()
 	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
-	healthHandler := handler.NewHealthHandler()
-	reviewRepo := repo.NewReviewRepo(db)
-	interviewRepo := repo.NewInterviewRepo(db)
 	transcriptRepo := repo.NewTranscriptRepo(db)
 	transcriptManager := service.NewTranscriptManager(transcriptRepo)
+	healthHandler := handler.NewHealthHandler(transcriptManager)
+	reviewRepo := repo.NewReviewRepo(db)
+	interviewRepo := repo.NewInterviewRepo(db)
 	llmConfig, err := config.LoadLLMConfig()
 	if err != nil {
 		return nil, err

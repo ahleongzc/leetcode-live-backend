@@ -13,19 +13,18 @@ import (
 )
 
 type InterviewService interface {
-	GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error)
-	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error)
-	// Returns the id of the interview
 	ConsumeTokenAndStartInterview(ctx context.Context, token string) (*entity.Interview, error)
-	// Returns the one-off token that is used to validate the incoming websocket request
-	SetUpNewInterviewForCandidate(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
+	TimeChecker(ctx context.Context, interviewID uint) (bool, *model.WebSocketMessage, error)
 	PrepareToListen(ctx context.Context, interviewID uint) error
 	PauseCandidateOngoingInterview(ctx context.Context, userID uint) error
 	AbandonCandidateUnfinishedInterview(ctx context.Context, userID uint) error
+	// Returns the one-off token that is used to validate the incoming websocket request
 	SetUpCandidateUnfinishedInterview(ctx context.Context, userID uint) (string, error)
 	GetCandidateOngoingInterview(ctx context.Context, userID uint) (*model.Interview, error)
-	EndCandidateOngoingInterview(ctx context.Context, userID uint) error
 	GetCandidateUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
+	GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error)
+	SetUpNewInterviewForCandidate(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
+	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error)
 }
 
 func NewInterviewService(
@@ -76,23 +75,33 @@ type InterviewServiceImpl struct {
 	messageQueueRepo         repo.MessageQueueProducerRepo
 }
 
-// EndOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) EndCandidateOngoingInterview(ctx context.Context, userID uint) error {
-	ongoingInterview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+// TimeChecker implements InterviewService.
+func (i *InterviewServiceImpl) TimeChecker(ctx context.Context, interviewID uint) (bool, *model.WebSocketMessage, error) {
+	ongoingInterview, err := i.interviewRepo.GetByID(ctx, interviewID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
-		return err
+		return true, nil, err
 	}
 
 	if !ongoingInterview.Exists() {
-		return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+		return true, nil, fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+	}
+
+	if !ongoingInterview.TimesUp() {
+		return false, nil, nil
 	}
 
 	ongoingInterview.End()
+
 	if err := i.interviewRepo.Update(ctx, ongoingInterview); err != nil {
-		return err
+		return true, nil, err
 	}
 
-	return nil
+	msg, err := i.timesUp(ctx, interviewID)
+	if err != nil {
+		return true, nil, nil
+	}
+
+	return true, msg, nil
 }
 
 // PauseOngoingInterview implements InterviewService.
@@ -107,6 +116,11 @@ func (i *InterviewServiceImpl) PauseCandidateOngoingInterview(ctx context.Contex
 	}
 
 	interview.Pause()
+
+	if err := i.transcriptManager.FlushCandidateAndRemoveInterview(ctx, interview.ID); err != nil {
+		return err
+	}
+
 	if err := i.interviewRepo.Update(ctx, interview); err != nil {
 		return err
 	}
@@ -151,6 +165,10 @@ func (i *InterviewServiceImpl) AbandonCandidateUnfinishedInterview(ctx context.C
 
 	interview.Abandon()
 	if err := i.interviewRepo.Update(ctx, interview); err != nil {
+		return err
+	}
+
+	if err := i.transcriptManager.FlushCandidateAndRemoveInterview(ctx, interview.ID); err != nil {
 		return err
 	}
 
@@ -374,10 +392,8 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 		return nil, err
 	}
 
-	if util.IsDevEnv() {
-		intent, score := intent.GetIntentWithHighestConfidenceScoreWithScore()
-		fmt.Printf("The current message chunk is '%s', the intent is %s with a score of %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), intent, score)
-	}
+	intentInfo, score := intent.GetIntentWithHighestConfidenceScoreWithScore()
+	fmt.Printf("The current message chunk is '%s', the intent is %s with a score of %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), intentInfo, score)
 
 	if err := i.transcriptManager.FlushCandidate(ctx, interviewID); err != nil {
 		return nil, err
@@ -507,6 +523,70 @@ func (i *InterviewServiceImpl) getInterviewQuestionDescription(ctx context.Conte
 // ListenToCandidate implements InterviewScenario.
 func (i *InterviewServiceImpl) listen(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	return nil, nil
+}
+
+func (i *InterviewServiceImpl) timesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
+	if err := i.transcriptManager.FlushCandidateAndRemoveInterview(ctx, interviewID); err != nil {
+		return nil, err
+	}
+
+	llmMessages := make([]*model.LLMMessage, 0)
+	history, err := i.transcriptManager.GetTranscriptHistory(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, transcript := range history {
+		llmMessages = append(llmMessages, transcript.ToLLMMessage())
+	}
+
+	llmMessages = append(llmMessages, &model.LLMMessage{
+		Role: model.SYSTEM,
+		Content: `
+			The interview's time is up now. 
+			You need to thank the candidate for their time for attempting the interview and remind them that you will review the entire process and give him an appropriate score later.
+			Be clear, concise, and professional — just like you would be in a real interview.
+		`,
+	})
+
+	req := &model.ChatCompletionsRequest{
+		Messages: llmMessages,
+	}
+
+	resp, err := i.llmRepo.ChatCompletions(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	replyToCandidate := resp.GetResponse().GetContent()
+
+	reader, err := i.ttsRepo.TextToSpeechReader(
+		ctx, replyToCandidate, `
+			You are a senior software engineer conducting a LeetCode-style technical interview. 
+			Speak clearly and at a measured pace. Use a calm, thoughtful, and professional tone, as if you're guiding a candidate through the problem. 
+			Pause briefly between key points. 
+			Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.
+		`,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Make the file name follow a structure
+	url, err := i.fileRepo.Upload(ctx, "tmp.mp3", reader, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url); err != nil {
+		return nil, err
+	}
+
+	msg := model.NewServerWebsocketMessage().
+		SetURL(url).
+		CloseConnection()
+
+	return msg, nil
 }
 
 // CandidateAsksForClarification implements InterviewScenario.

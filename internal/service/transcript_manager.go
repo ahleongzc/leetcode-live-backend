@@ -11,12 +11,15 @@ import (
 )
 
 type TranscriptManager interface {
+	FlushCandidateAndRemoveInterview(ctx context.Context, interviewID uint) error
 	FlushCandidate(ctx context.Context, interviewID uint) error
 	WriteCandidate(ctx context.Context, interviewID uint, chunk string) error
 	WriteInterviewer(ctx context.Context, interviewID uint, chunk, url string) error
 	GetTranscriptHistory(ctx context.Context, interviewID uint) ([]*entity.Transcript, error)
 	HasSufficientWordsInBuffer(ctx context.Context, interviewID uint) (bool, error)
 	GetSentenceInBuffer(ctx context.Context, interviewID uint) string
+	// Returns the size of the hashmap
+	GetManagerInfo() uint
 }
 
 func NewTranscriptManager(
@@ -31,6 +34,21 @@ func NewTranscriptManager(
 type TranscriptManagerImpl struct {
 	transcriptRepo repo.TranscriptRepo
 	bufferMap      map[uint]*strings.Builder
+}
+
+// FlushAndRemoveInterview implements TranscriptManager.
+func (t *TranscriptManagerImpl) FlushCandidateAndRemoveInterview(ctx context.Context, interviewID uint) error {
+	if err := t.FlushCandidate(ctx, interviewID); err != nil {
+		return err
+	}
+
+	delete(t.bufferMap, interviewID)
+	return nil
+}
+
+// GetManagerInfo implements TranscriptManager.
+func (t *TranscriptManagerImpl) GetManagerInfo() uint {
+	return uint(len(t.bufferMap))
 }
 
 // GetSentenceInBuffer implements TranscriptManager.

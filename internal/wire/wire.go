@@ -53,6 +53,11 @@ func InitializeApplication() (*app.Application, error) {
 		repo.NewTTSRepo,
 		repo.NewInMemoryCallbackQueueRepo,
 		repo.NewIntentClassificationRepo,
+		wire.NewSet(
+			repo.NewMessageQueueRepo,
+			wire.Bind(new(repo.MessageQueueProducerRepo), new(repo.MessageQueueRepo)),
+			wire.Bind(new(repo.MessageQueueConsumerRepo), new(repo.MessageQueueRepo)),
+		),
 
 		// HTTP
 		http.NewHTTPCLient,
@@ -78,12 +83,6 @@ func InitializeApplication() (*app.Application, error) {
 		config.LoadInMemoryQueueConfig,
 		config.LoadMessageQueueConfig,
 		config.LoadIntentClassificationConfig,
-
-		wire.NewSet(
-			repo.NewMessageQueueRepo,
-			wire.Bind(new(repo.MessageQueueProducerRepo), new(repo.MessageQueueRepo)),
-			wire.Bind(new(repo.MessageQueueConsumerRepo), new(repo.MessageQueueRepo)),
-		),
 
 		// Middleware
 		middleware.NewMiddleware,
