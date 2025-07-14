@@ -1,7 +1,7 @@
 .DEFAULT: run
-.PHONY: run build gen vet fmt count train
+.PHONY: run build gen vet fmt count train infra
 
-run: setUpInfra build
+run: setUpDev build
 	@if [ ! -f ./bin/model.bin ]; then \
         echo "model.bin not found. Running training..."; \
         make train; \
@@ -40,7 +40,7 @@ testModel:
 		./bin/model.bin \
 		./scripts/test.txt
 
-setUpInfra:
+setUpDev:
 	@if [ "$$(docker ps -q -f name=rabbitmq)" = "" ]; then \
 		echo "Starting RabbitMQ container..."; \
 		docker run -d \
@@ -52,3 +52,10 @@ setUpInfra:
 	else \
 		echo "RabbitMQ container already running."; \
 	fi
+
+apply:
+	@cd infra && terraform apply
+
+tearDownProd:
+	@cd infra && terraform destroy
+
