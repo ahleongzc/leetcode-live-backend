@@ -30,7 +30,7 @@ type InterviewService interface {
 }
 
 func NewInterviewService(
-	aiService AIService,
+	aiUseCase AIUseCase,
 	userService UserService,
 	authService AuthService,
 	reviewService ReviewService,
@@ -44,7 +44,7 @@ func NewInterviewService(
 	intentClassificationRepo repo.IntentClassificationRepo,
 ) InterviewService {
 	return &InterviewServiceImpl{
-		aiService:                aiService,
+		aiUseCase:                aiUseCase,
 		authService:              authService,
 		userService:              userService,
 		reviewService:            reviewService,
@@ -60,7 +60,7 @@ func NewInterviewService(
 }
 
 type InterviewServiceImpl struct {
-	aiService                AIService
+	aiUseCase                AIUseCase
 	userService              UserService
 	authService              AuthService
 	reviewService            ReviewService
@@ -381,8 +381,11 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	}
 
 	if util.IsDevEnv() {
-		intent, score := intent.GetIntentWithHighestConfidenceScoreWithScore()
-		fmt.Printf("The current message chunk is '%s', the intent is %s with a score of %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), intent, score)
+		intent, score := intent.GetIntentWithHighestConfidenceWithScoreOutOf100()
+		if intent == model.OTHERS {
+			fmt.Println("!!! Needs to generate reply !!!")
+		}
+		fmt.Printf("The current message chunk is '%s', the score is %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), score)
 	}
 
 	if err := i.transcriptManager.FlushCandidate(ctx, interviewID); err != nil {
@@ -397,17 +400,23 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	return response, nil
 }
 
-func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intent *model.IntentDetail) (*model.WebSocketMessage, error) {
-	if !intent.Exists() {
+func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intentDetail *model.IntentDetail) (*model.WebSocketMessage, error) {
+	if !intentDetail.Exists() {
 		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
 	}
 
-	if intent.GetIntentWithHighestConfidenceScore() == model.CANDIDATE_EXPLANATION {
+	intent, score := intentDetail.GetIntentWithHighestConfidenceWithScoreOutOf100()
+	if intent == model.CANDIDATE_EXPLANATION {
 		return i.listen(ctx, interviewID)
 	}
 
-	if intent.GetIntentWithHighestConfidenceScore() == model.OTHERS {
-		return i.answer(ctx, interviewID)
+	// Others mean you would need to answer back, the candidate might be asking for clarification or hints etc etc
+	// This will only be triggered if the score is more than 70 / 100
+	if intent == model.OTHERS {
+		if score > 70 {
+			return i.answer(ctx, interviewID)
+		}
+		return i.listen(ctx, interviewID)
 	}
 
 	return nil, fmt.Errorf("invalid intent %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
@@ -597,7 +606,7 @@ func (i *InterviewServiceImpl) generateSpeechReply(ctx context.Context, content 
 		Avoid sounding robotic—speak naturally and deliberately, like in a real conversation.
 	`
 
-	reader, err := i.aiService.GenerateSpeechReply(ctx, content, instruction)
+	reader, err := i.aiUseCase.GenerateSpeechReply(ctx, content, instruction)
 	if err != nil {
 		return nil, err
 	}
@@ -606,12 +615,18 @@ func (i *InterviewServiceImpl) generateSpeechReply(ctx context.Context, content 
 }
 
 func (i *InterviewServiceImpl) uploadVoiceReply(ctx context.Context, interviewID uint, reader io.Reader) (string, error) {
+	defer func() {
+		if util.IsDevEnv() {
+			fmt.Println("Finished sending reply to frontend")
+		}
+	}()
+
 	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
 	if err != nil {
 		return "", err
 	}
 
-	path := fmt.Sprintf("%d/%d/%d.mp3", interview.UserID, interviewID, time.Now().UnixMilli())
+	path := fmt.Sprintf("user_%d/interview_%d/timestamp_ms_%d.mp3", interview.UserID, interviewID, time.Now().UnixMilli())
 
 	url, err := i.fileRepo.Upload(ctx, path, reader, nil)
 	if err != nil {
@@ -633,7 +648,7 @@ func (i *InterviewServiceImpl) generateTextReply(ctx context.Context, prompt str
 
 	llmMessages = append(llmMessages, latestPrompt)
 
-	replyToCandidate, err := i.aiService.GenerateTextReply(ctx, llmMessages)
+	replyToCandidate, err := i.aiUseCase.GenerateTextReply(ctx, llmMessages)
 	if err != nil {
 		return "", err
 	}

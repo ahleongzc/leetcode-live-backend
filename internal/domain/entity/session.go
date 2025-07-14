@@ -13,6 +13,10 @@ func NewSession() *Session {
 	return &Session{}
 }
 
+func (s *Session) Exists() bool {
+	return s != nil
+}
+
 func (s *Session) SetToken(token string) *Session {
 	if s == nil {
 		return nil

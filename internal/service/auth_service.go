@@ -50,11 +50,12 @@ func (a *AuthServiceImpl) GenerateRandomToken() string {
 // GetUserIDFromSessionToken implements AuthService.
 func (a *AuthServiceImpl) GetUserIDFromSessionToken(ctx context.Context, token string) (uint, error) {
 	session, err := a.sessionRepo.GetByToken(ctx, token)
-	if err != nil {
-		if errors.Is(err, common.ErrNotFound) {
-			return 0, common.ErrUnauthorized
-		}
+	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return 0, err
+	}
+
+	if !session.Exists() {
+		return 0, common.ErrUnauthorized
 	}
 
 	user, err := a.userRepo.GetByID(ctx, session.UserID)

@@ -14,13 +14,13 @@ type ReviewService interface {
 }
 
 func NewReviewService(
-	aiService AIService,
+	aiUseCase AIUseCase,
 	reviewRepo repo.ReviewRepo,
 	interviewRepo repo.InterviewRepo,
 	transcriptManager TranscriptManager,
 ) ReviewService {
 	return &ReviewServiceImpl{
-		aiService:         aiService,
+		aiUseCase:         aiUseCase,
 		reviewRepo:        reviewRepo,
 		interviewRepo:     interviewRepo,
 		transcriptManager: transcriptManager,
@@ -28,7 +28,7 @@ func NewReviewService(
 }
 
 type ReviewServiceImpl struct {
-	aiService         AIService
+	aiUseCase         AIUseCase
 	reviewRepo        repo.ReviewRepo
 	interviewRepo     repo.InterviewRepo
 	transcriptManager TranscriptManager
@@ -82,7 +82,7 @@ func (r *ReviewServiceImpl) ReviewInterviewPerformance(ctx context.Context, inte
 
 	llmMessages = append(llmMessages, latestPrompt)
 
-	reply, err := r.aiService.GenerateTextReply(ctx, llmMessages)
+	reply, err := r.aiUseCase.GenerateTextReply(ctx, llmMessages)
 	if err != nil {
 		return err
 	}

@@ -20,7 +20,7 @@ func NewIntentDetail() *IntentDetail {
 	}
 }
 
-func (i *IntentDetail) GetIntentWithHighestConfidenceScore() Intent {
+func (i *IntentDetail) GetIntentWithHighestConfidence() Intent {
 	var highestScore float64
 	var intentWithHighestScore Intent
 
@@ -34,10 +34,10 @@ func (i *IntentDetail) GetIntentWithHighestConfidenceScore() Intent {
 	return intentWithHighestScore
 }
 
-func (i *IntentDetail) GetIntentWithHighestConfidenceScoreWithScore() (Intent, float64) {
-	intentWithHighestScore := i.GetIntentWithHighestConfidenceScore()
+func (i *IntentDetail) GetIntentWithHighestConfidenceWithScoreOutOf100() (Intent, float64) {
+	intentWithHighestScore := i.GetIntentWithHighestConfidence()
 	if score, ok := i.Mapping[intentWithHighestScore]; ok {
-		return intentWithHighestScore, score
+		return intentWithHighestScore, score * 100
 	}
 
 	return DEFAULT, 0

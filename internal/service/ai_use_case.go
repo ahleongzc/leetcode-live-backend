@@ -8,28 +8,28 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 )
 
-type AIService interface {
+type AIUseCase interface {
 	GenerateSpeechReply(ctx context.Context, text, instruction string) (io.Reader, error)
 	GenerateTextReply(ctx context.Context, messages []*model.LLMMessage) (string, error)
 }
 
-func NewAIService(
+func NewAIUseCase(
 	ttsRepo repo.TTSRepo,
 	llmRepo repo.LLMRepo,
-) AIService {
-	return &AIServiceImpl{
+) AIUseCase {
+	return &AIUseCaseImpl{
 		ttsRepo: ttsRepo,
 		llmRepo: llmRepo,
 	}
 }
 
-type AIServiceImpl struct {
+type AIUseCaseImpl struct {
 	ttsRepo repo.TTSRepo
 	llmRepo repo.LLMRepo
 }
 
 // GenerateSpeechReply implements AIService.
-func (a *AIServiceImpl) GenerateSpeechReply(ctx context.Context, text, instruction string) (io.Reader, error) {
+func (a *AIUseCaseImpl) GenerateSpeechReply(ctx context.Context, text, instruction string) (io.Reader, error) {
 	reader, err := a.ttsRepo.TextToSpeechReader(ctx, text, instruction)
 	if err != nil {
 		return nil, err
@@ -39,7 +39,7 @@ func (a *AIServiceImpl) GenerateSpeechReply(ctx context.Context, text, instructi
 }
 
 // GenerateTextReply implements AIService.
-func (a *AIServiceImpl) GenerateTextReply(ctx context.Context, messages []*model.LLMMessage) (string, error) {
+func (a *AIUseCaseImpl) GenerateTextReply(ctx context.Context, messages []*model.LLMMessage) (string, error) {
 	req := model.NewChatCompletionsRequest().
 		SetMessages(messages)
 

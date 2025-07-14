@@ -62,10 +62,10 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	aiService := service.NewAIService(ttsRepo, llmRepo)
+	aiUseCase := service.NewAIUseCase(ttsRepo, llmRepo)
 	reviewRepo := repo.NewReviewRepo(db)
 	interviewRepo := repo.NewInterviewRepo(db)
-	reviewService := service.NewReviewService(aiService, reviewRepo, interviewRepo, transcriptManager)
+	reviewService := service.NewReviewService(aiUseCase, reviewRepo, interviewRepo, transcriptManager)
 	messageQueueConfig, err := config.LoadMessageQueueConfig()
 	if err != nil {
 		return nil, err
@@ -93,7 +93,7 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
-	interviewService := service.NewInterviewService(aiService, userService, authService, reviewService, questionService, transcriptManager, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
+	interviewService := service.NewInterviewService(aiUseCase, userService, authService, reviewService, questionService, transcriptManager, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
 	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
