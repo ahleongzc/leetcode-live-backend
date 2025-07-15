@@ -1,16 +1,26 @@
-variable "backend_instance_name" {
-  description = "name of the instance"
-  type        = string
-  default     = "backend"
+variable "bastion_name" {
+  default = "bastion-host"
 }
-
-variable "machine_type" {
-  description = "gce machine type"
-  type        = string
-  default     = "e2-micro"
+variable "bastion_machine_type" {
+  default = "e2-micro"
 }
-
+// TODO: Change this to a more powerful instance
+variable "application_server_machine_type" {
+  default = "e2-micro"
+}
+variable "bastion_image_family" {
+  default = "debian-12"
+}
+variable "region" {
+  type = string
+}
 variable "zone" {
-  description = "gcp zone"
+  type = string
+}
+variable "public_subnet_self_link" {
+  description = "the self link of the public subnet where the bastion host will reside."
   type        = string
+}
+variable "ssh_public_key" {
+  type = string
 }

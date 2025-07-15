@@ -1,3 +1,6 @@
+// TODO
+// 1. Add source_ranges to my firewall rules to SSH into the bastion host
+
 resource "google_compute_network" "vpc" {
   name                    = "prod"
   auto_create_subnetworks = false
@@ -30,14 +33,27 @@ resource "google_compute_subnetwork" "private_subnet" {
   }
 }
 
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network = google_compute_network.vpc.id
-  service = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [
-    google_compute_subnetwork.private_subnet.secondary_ip_range[0].range_name
-  ]
+resource "google_compute_firewall" "allow_ssh_to_bastion" {
+  name        = "allow-ssh-to-bastion"
+  network     = google_compute_network.vpc.id
+  direction   = "INGRESS"
+  target_tags = ["bastion-host"]
 
-  depends_on = [
-    google_compute_subnetwork.private_subnet
-  ]
+  # TODO: Change this to home network
+  source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+}
+
+resource "google_compute_firewall" "allow_bastion_to_cloudsql" {
+  name      = "allow-bastion-to-cloudsql"
+  network   = google_compute_network.vpc.id
+  direction = "EGRESS"
+  allow {
+    protocol = "tcp"
+    ports    = ["5432"]
+  }
+  destination_ranges = [var.secondary_private_subnet_cidr] # Assuming this is where Cloud SQL lives
 }

@@ -5,11 +5,13 @@ module "gcp_network" {
   public_subnet_cidr            = var.public_subnet_cidr
   private_subnet_cidr           = var.private_subnet_cidr
   secondary_private_subnet_cidr = var.secondary_private_subnet_cidr
-
 }
-module "gcp_backend_instance" {
-  source = "./gcp/compute"
-  zone   = var.zone
+module "gcp_compute" {
+  source                  = "./gcp/compute"
+  zone                    = var.zone
+  region                  = var.region
+  public_subnet_self_link = module.gcp_network.public_subnet_self_link
+  ssh_public_key          = file(pathexpand(var.ssh_public_key_path))
 }
 module "gcp_sql" {
   source                 = "./gcp/sql"
@@ -20,4 +22,6 @@ module "gcp_sql" {
   database_version       = var.database_version
   database_name          = var.database_name
   vpc_id                 = module.gcp_network.vpc_id
+
+  depends_on = [module.gcp_network]
 }

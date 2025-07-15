@@ -58,3 +58,6 @@ variable "secondary_private_subnet_cidr" {
   description = "subnetwork for database"
   type        = string
 }
+variable "ssh_public_key_path" {
+  type = string
+}
