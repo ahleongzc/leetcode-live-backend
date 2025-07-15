@@ -46,6 +46,32 @@ resource "google_compute_firewall" "allow_ssh_to_bastion" {
     ports    = ["22"]
   }
 }
+resource "google_compute_firewall" "allow_ssh_to_application_server" {
+  name        = "allow-ssh-to-application-server"
+  network     = google_compute_network.vpc.id
+  direction   = "INGRESS"
+  target_tags = ["application-server"]
+
+  # TODO: Change this to home network
+  source_ranges = ["0.0.0.0/0"]
+  allow {
+    protocol = "tcp"
+    ports    = ["22"]
+  }
+}
+resource "google_compute_firewall" "allow_application_to_cloudsql" {
+  name        = "allow-application-to-cloudsql"
+  network     = google_compute_network.vpc.id
+  direction   = "EGRESS"
+  target_tags = ["application-server"]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["5432"]
+  }
+
+  destination_ranges = [var.secondary_private_subnet_cidr]
+}
 
 resource "google_compute_firewall" "allow_bastion_to_cloudsql" {
   name      = "allow-bastion-to-cloudsql"
@@ -55,5 +81,5 @@ resource "google_compute_firewall" "allow_bastion_to_cloudsql" {
     protocol = "tcp"
     ports    = ["5432"]
   }
-  destination_ranges = [var.secondary_private_subnet_cidr] # Assuming this is where Cloud SQL lives
+  destination_ranges = [var.secondary_private_subnet_cidr]
 }

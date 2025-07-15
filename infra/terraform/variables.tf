@@ -59,5 +59,6 @@ variable "secondary_private_subnet_cidr" {
   type        = string
 }
 variable "ssh_public_key_path" {
-  type = string
+  type      = string
+  sensitive = true
 }
