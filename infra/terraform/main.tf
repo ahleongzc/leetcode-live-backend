@@ -8,3 +8,17 @@ module "gcp_sql" {
   whitelisted_ip_address = var.whitelisted_ip_address
   database_name          = var.database_name
 }
+
+module "gcp_backend_instance" {
+  source = "./gcp/compute"
+  zone   = var.zone
+}
+
+module "gcp_network" {
+  source              = "./gcp/network"
+  project_id          = var.project_id
+  region              = var.region
+  public_subnet_cidr  = var.public_subnet_cidr
+  private_subnet_cidr = var.private_subnet_cidr
+
+}

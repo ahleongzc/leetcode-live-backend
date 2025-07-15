@@ -1,7 +1,7 @@
 variable "cloudflare_api_token" {
   description = "cloudflare api token"
-  type = string
-  sensitive = true
+  type        = string
+  sensitive   = true
 }
 
 variable "gcp_sa_key_file_path" {
@@ -16,12 +16,12 @@ variable "db_password" {
 }
 
 variable "project_id" {
-  description = "gcp project id"
+  description = "project id"
   type        = string
 }
 
 variable "region" {
-  description = "gcp region"
+  description = "region"
   type        = string
 }
 
@@ -54,4 +54,13 @@ variable "whitelisted_ip_address" {
   description = "whitelisted ip address"
   type        = string
   sensitive   = true
+}
+variable "public_subnet_cidr" {
+  description = "subnetwork for public-facing VMs"
+  type        = string
+}
+
+variable "private_subnet_cidr" {
+  description = "subnetwork for internal-only VMs"
+  type        = string
 }
