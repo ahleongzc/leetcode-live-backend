@@ -1,5 +1,5 @@
-module "sql" {
-  source                 = "./modules/sql"
+module "gcp_sql" {
+  source                 = "./gcp/sql"
   region                 = var.region
   database_user          = var.database_user
   db_password            = var.db_password

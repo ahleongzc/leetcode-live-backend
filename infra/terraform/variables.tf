@@ -1,12 +1,18 @@
+variable "cloudflare_api_token" {
+  description = "cloudflare api token"
+  type = string
+  sensitive = true
+}
+
+variable "gcp_sa_key_file_path" {
+  description = "service acount key file path"
+  type        = string
+}
+
 variable "db_password" {
   description = "database password"
   type        = string
   sensitive   = true
-}
-
-variable "project_name" {
-  description = "gcp project name"
-  type        = string
 }
 
 variable "project_id" {

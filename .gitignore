@@ -36,10 +36,11 @@ go.work.sum
 /bin
 /tmp
 
-/infra/.terraform
-/infra/*.tfstate
-/infra/*.tfstate.*
-/infra/*.tfvars
-/infra/*.tfvars.json
-/infra/*.tfplan
-/infra/*.terraformrc
+/infra/terraform/.terraform
+/infra/terraform/*.tfstate
+/infra/terraform/*.tfstate.*
+/infra/terraform/*.tfvars
+/infra/terraform/*.tfvars.json
+/infra/terraform/*.tfplan
+/infra/terraform/*.terraformrc
+/infra/terraform/*.json
