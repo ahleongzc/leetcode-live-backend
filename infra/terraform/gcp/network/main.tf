@@ -23,4 +23,21 @@ resource "google_compute_subnetwork" "private_subnet" {
   network                  = google_compute_network.vpc.id
   description              = "Private subnet for internal instances without external IPs"
   private_ip_google_access = true
+
+  secondary_ip_range {
+    range_name    = "google-managed-services"
+    ip_cidr_range = var.secondary_private_subnet_cidr
+  }
+}
+
+resource "google_service_networking_connection" "private_vpc_connection" {
+  network = google_compute_network.vpc.id
+  service = "servicenetworking.googleapis.com"
+  reserved_peering_ranges = [
+    google_compute_subnetwork.private_subnet.secondary_ip_range[0].range_name
+  ]
+
+  depends_on = [
+    google_compute_subnetwork.private_subnet
+  ]
 }

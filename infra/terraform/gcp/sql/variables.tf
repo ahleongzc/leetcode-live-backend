@@ -24,10 +24,9 @@ variable "database_version" {
   type        = string
 }
 
-variable "whitelisted_ip_address" {
-  description = "whitelisted ip address"
+variable "vpc_id" {
+  description = "vpc id"
   type        = string
-  sensitive   = true
 }
 
 variable "database_name" {
