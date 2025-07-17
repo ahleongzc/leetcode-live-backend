@@ -1,5 +1,6 @@
 // TODO
-// 1. Add source_ranges to my firewall rules to SSH into the bastion host
+// 1. Add source_ranges to firewall rules to SSH into the bastion host and limit it to a certain IP range
+// 2. Comment out SSH into application server
 
 resource "google_compute_network" "vpc" {
   name                    = "prod"

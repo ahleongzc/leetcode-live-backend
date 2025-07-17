@@ -24,3 +24,6 @@ variable "public_subnet_self_link" {
 variable "ssh_public_key" {
   type = string
 }
+variable "ssh_user" {
+  type = string
+}

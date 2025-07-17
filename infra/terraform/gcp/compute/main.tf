@@ -15,7 +15,7 @@ resource "google_compute_instance" "bastion" {
   }
 
   metadata = {
-    ssh-keys = "dev:${var.ssh_public_key}"
+    ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
   }
   tags = ["bastion-host"]
   labels = {
@@ -40,7 +40,7 @@ resource "google_compute_instance" "application_server" {
   }
 
   metadata = {
-    ssh-keys = "dev:${var.ssh_public_key}"
+    ssh-keys = "${var.ssh_user}:${var.ssh_public_key}"
   }
 
   tags = ["application-server"]

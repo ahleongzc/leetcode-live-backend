@@ -23,7 +23,7 @@ type FastTextProcess struct {
 }
 
 func NewFastTextProcess(modelPath string, numClasses uint) (*FastTextProcess, error) {
-	cmd := exec.Command("./internal/repo/fasttext/fasttext", "predict-prob", modelPath, "-", strconv.Itoa(int(numClasses)))
+	cmd := exec.Command("./bin/fasttext", "predict-prob", modelPath, "-", strconv.Itoa(int(numClasses)))
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -59,12 +59,12 @@ func (f *FastTextProcess) Classify(text string) (*model.IntentDetail, error) {
 	}
 
 	if _, err := f.stdin.Write([]byte(text + "\n")); err != nil {
-		return nil, fmt.Errorf("failed to write to fasttext: %w", common.ErrInternalServerError)
+		return nil, fmt.Errorf("failed to write to fasttext, %s: %w", err, common.ErrInternalServerError)
 	}
 
 	if !f.scanner.Scan() {
 		if err := f.scanner.Err(); err != nil {
-			return nil, fmt.Errorf("failed to read from fasttext: %w", common.ErrInternalServerError)
+			return nil, fmt.Errorf("failed to read from fasttext, %s: %w", err, common.ErrInternalServerError)
 		}
 		return nil, fmt.Errorf("fasttext process closed unexpectedly: %w", common.ErrInternalServerError)
 	}

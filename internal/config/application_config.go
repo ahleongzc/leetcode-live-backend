@@ -16,14 +16,12 @@ type ServerConfig struct {
 }
 
 func LoadServerConfig() *ServerConfig {
-	address := "localhost:" + util.GetEnvOr(common.PORT_KEY, "8000")
+	address := "0.0.0.0:" + util.GetEnvOr(common.PORT_KEY, "8000")
 	idleTimeout := time.Minute
 	readTimeout := 10 * time.Second
 	writeTimeout := 30 * time.Second
 
 	if util.IsProdEnv() {
-		address = "0.0.0.0:" + util.GetEnvOr(common.PORT_KEY, "8000")
-
 		idleTimeoutSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.IDLE_TIMEOUT_SEC_KEY, "60"))
 		if nil == err {
 			idleTimeout = time.Duration(idleTimeoutSecondsValue) * time.Second

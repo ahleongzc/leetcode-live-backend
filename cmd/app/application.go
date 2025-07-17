@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
@@ -22,6 +23,7 @@ type Application struct {
 	reviewConsumer   *consumer.ReviewConsumer
 	housekeeper      background.HouseKeeper
 	workerPool       background.WorkerPool
+	wg               sync.WaitGroup
 }
 
 func NewApplication(
@@ -78,6 +80,14 @@ func (a *Application) Handler() http.Handler {
 		a.middleware.RecordRequestTimestampMS,
 		a.middleware.Log,
 	).Then(mux)
+}
+
+func (a *Application) IncrementWaitGroup() {
+	a.wg.Add(1)
+}
+
+func (a *Application) DecrementWaitGroup() {
+	a.wg.Done()
 }
 
 func (a *Application) StartHouseKeeping(ctx context.Context, interval time.Duration) {

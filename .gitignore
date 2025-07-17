@@ -44,3 +44,8 @@ go.work.sum
 /infra/terraform/*.tfplan
 /infra/terraform/*.terraformrc
 /infra/terraform/*.json
+
+/infra/ansible/group_vars/*.vault
+
+# Scripts
+*.sh

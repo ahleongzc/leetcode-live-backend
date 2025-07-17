@@ -60,5 +60,7 @@ variable "secondary_private_subnet_cidr" {
 }
 variable "ssh_public_key_path" {
   type      = string
-  sensitive = true
+}
+variable "ssh_user" {
+  type = string
 }

@@ -2,8 +2,8 @@ import re
 import random
 import inflect
 
-input_file = "training.txt"
-output_file = "labels.txt"
+input_file = "./data.txt"
+output_file = "../internal/repo/fasttext/labels.txt"
 
 p = inflect.engine()
 

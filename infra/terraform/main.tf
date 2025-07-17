@@ -12,6 +12,7 @@ module "gcp_compute" {
   region                  = var.region
   public_subnet_self_link = module.gcp_network.public_subnet_self_link
   ssh_public_key          = file(pathexpand(var.ssh_public_key_path))
+  ssh_user                = var.ssh_user
 }
 module "gcp_sql" {
   source                 = "./gcp/sql"

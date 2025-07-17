@@ -1,5 +1,5 @@
 .DEFAULT: run
-.PHONY: run build gen vet fmt count train infra
+.PHONY: run build gen vet fmt count train infra fasttext
 
 run: setUpDev build
 	@if [ ! -f ./bin/model.bin ]; then \
@@ -7,6 +7,13 @@ run: setUpDev build
         make train; \
     fi
 	@air
+
+fasttext:
+	@if [ ! -f ./bin/fasttext ]; then \
+        echo "fasttext binary not found. running make from source..."; \
+		cd ./internal/repo/fasttext/fastText-0.9.2 && make; \
+		cp ./fasttext ../../../../bin/; \
+    fi
 
 build: tidy fmt gen
 	@go build -o=./bin/app ./cmd
@@ -28,9 +35,10 @@ count:
 
 train:
 	@cd scripts && python3 clean.py
-	@./internal/repo/fasttext/fasttext supervised \
-		-input ./scripts/labels.txt \
-		-output ./bin/model \
+	@cd ./internal/repo/fasttext && \
+		../../../bin/fasttext supervised \
+		-input ./labels.txt \
+		-output ../../../bin/model \
 		-epoch 100 \
 		-dim 100 \
 		-lr 0.10
