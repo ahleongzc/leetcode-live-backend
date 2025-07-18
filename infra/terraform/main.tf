@@ -26,3 +26,15 @@ module "gcp_sql" {
 
   depends_on = [module.gcp_network]
 }
+module "gcp_artifact_registry" {
+  source        = "./gcp/artifact_registry"
+  location      = var.region
+  project_id    = var.project_id
+  repository_id = var.container_registry_id
+  enabled_apis  = module.gcp_iam.enabled_apis
+}
+
+module "gcp_iam" {
+  source     = "./gcp/iam"
+  project_id = var.project_id
+}

@@ -59,8 +59,11 @@ variable "secondary_private_subnet_cidr" {
   type        = string
 }
 variable "ssh_public_key_path" {
-  type      = string
+  type = string
 }
 variable "ssh_user" {
+  type = string
+}
+variable "container_registry_id" {
   type = string
 }

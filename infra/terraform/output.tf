@@ -11,3 +11,6 @@ output "ssh_user" {
 output "ssh_public_key_path" {
   value = var.ssh_public_key_path
 }
+output "cicd_service_account_email" {
+  value       = module.gcp_artifact_registry.cicd_service_account_email
+}
