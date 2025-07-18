@@ -1,47 +1,37 @@
 package config
 
-import (
-	"strconv"
-	"time"
+import "time"
 
-	"github.com/ahleongzc/leetcode-live-backend/internal/common"
-	"github.com/ahleongzc/leetcode-live-backend/internal/util"
+const (
+	// Pool size
+	IN_MEMORY_QUEUE_SIZE                  uint = 100
+	CONSUMER_POOL_SIZE                    uint = 20
+	INTENT_CLASSIFICATION_MODEL_POOL_SIZE uint = 5
+
+	// Interval
+	HOUSEKEEPING_INTERVAL time.Duration = 5 * time.Second
+
+	// Timeout
+	DB_QUERY_TIMEOUT                 time.Duration = 1 * time.Second
+	PUBLISHER_TIMEOUT                time.Duration = 5 * time.Second
+	FILE_UPLOAD_TIMEOUT              time.Duration = 10 * time.Second
+	HTTP_REQUEST_TIMEOUT             time.Duration = time.Minute
+	WRITE_TO_FILE_TIMEOUT            time.Duration = 5 * time.Second
+	MESSAGE_QUEUE_CONNECTION_TIMEOUT time.Duration = 30 * time.Second
+
+	// HTTP
+	INCOMING_PAYLOAD_MAX_BYTES int    = 1_048_576
+	SESSION_TOKEN_HEADER_KEY   string = "X-Session-Token"
+	INTERVIEW_TOKEN_HEADER_KEY string = "X-Interview-Token"
+
+	// Pagination
+	PAGINATION_DEFAULT_OFFSET uint = 0
+	PAGINATION_DEFAULT_LIMIT  uint = 10
+	PAGINATION_MAX_LIMIT      uint = 20
 )
 
-type ServerConfig struct {
-	Address      string
-	IdleTimeout  time.Duration
-	ReadTimeout  time.Duration
-	WriteTimeout time.Duration
-}
-
-func LoadServerConfig() *ServerConfig {
-	address := "0.0.0.0:" + util.GetEnvOr(common.PORT_KEY, "8000")
-	idleTimeout := time.Minute
-	readTimeout := 10 * time.Second
-	writeTimeout := 30 * time.Second
-
-	if util.IsProdEnv() {
-		idleTimeoutSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.IDLE_TIMEOUT_SEC_KEY, "60"))
-		if nil == err {
-			idleTimeout = time.Duration(idleTimeoutSecondsValue) * time.Second
-		}
-
-		readTimeoutSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.READ_TIMEOUT_SEC_KEY, "10"))
-		if nil == err {
-			readTimeout = time.Duration(readTimeoutSecondsValue) * time.Second
-		}
-
-		writeTimeoutSecondsValue, err := strconv.Atoi(util.GetEnvOr(common.WRITE_TIMEOUT_SEC_KEY, "30"))
-		if nil == err {
-			writeTimeout = time.Duration(writeTimeoutSecondsValue) * time.Second
-		}
+var (
+	PROD_TRUSTED_ORIGINS = map[string]struct{}{
+		"https://leetcode.com": {},
 	}
-
-	return &ServerConfig{
-		Address:      address,
-		IdleTimeout:  idleTimeout,
-		ReadTimeout:  readTimeout,
-		WriteTimeout: writeTimeout,
-	}
-}
+)

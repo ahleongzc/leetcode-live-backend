@@ -16,7 +16,8 @@ const (
 	PROD_ENVIRONMENT string = "production"
 
 	// Server
-	PORT_KEY              string = "PORT"
+	RPC_PORT_KEY          string = "RPC_PORT"
+	HTTP_PORT_KEY         string = "HTTP_PORT"
 	IDLE_TIMEOUT_SEC_KEY  string = "IDLE_TIMEOUT"
 	READ_TIMEOUT_SEC_KEY  string = "READ_TIMEOUT"
 	WRITE_TIMEOUT_SEC_KEY string = "WRITE_TIMEOUT"

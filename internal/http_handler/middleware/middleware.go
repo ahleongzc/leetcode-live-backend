@@ -7,7 +7,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
-	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
+	handler "github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 

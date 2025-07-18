@@ -8,8 +8,8 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
-	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
+	httpHandler "github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/http_handler/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
@@ -27,10 +27,10 @@ func InitializeApplication() (*app.Application, error) {
 		consumer.NewReviewConsumer,
 
 		// Handler
-		handler.NewAuthHandler,
-		handler.NewHealthHandler,
-		handler.NewInterviewHandler,
-		handler.NewUserHandler,
+		httpHandler.NewAuthHandler,
+		httpHandler.NewHealthHandler,
+		httpHandler.NewInterviewHandler,
+		httpHandler.NewUserHandler,
 
 		// Service
 		service.NewUserService,

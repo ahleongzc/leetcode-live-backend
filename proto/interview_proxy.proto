@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+option go_package = "github.com/ahleongzc/leetcode-live-websocket/proto;proto";
+
+service InterviewProxy {
+    rpc StartInterview(StartInterviewRequest) returns (StartInterviewResponse) {}
+}
+
+message StartInterviewResponse {}
+
+message StartInterviewRequest {
+    string token = 1;
+}

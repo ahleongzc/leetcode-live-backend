@@ -10,13 +10,7 @@ resource "google_artifact_registry_repository" "container_registry" {
     immutable_tags = true
   }
 
-  depends_on = [google_project_service.artifact_registry_api]
-}
-
-resource "google_project_service" "artifact_registry_api" {
-  project            = var.project_id
-  service            = "artifactregistry.googleapis.com"
-  disable_on_destroy = true
+  depends_on = [var.enabled_apis]
 }
 
 resource "google_service_account" "cicd_service_account" {

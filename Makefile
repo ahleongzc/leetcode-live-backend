@@ -1,7 +1,7 @@
 .DEFAULT: run
-.PHONY: run build gen vet fmt count train infra fasttext
+.PHONY: run build gen vet fmt count train infra fasttext compile
 
-run: setUpDev build
+run: setUpDev gen build
 	@if [ ! -f ./bin/model.bin ]; then \
         echo "model.bin not found. Running training..."; \
         make train; \
@@ -64,6 +64,10 @@ setUpDev:
 apply:
 	@cd infra && terraform apply
 
-tearDownProd:
+destroy:
 	@cd infra && terraform destroy
 
+compile:
+	@protoc --go_out=. --go_opt=paths=source_relative \
+    --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+    ./proto/*.proto

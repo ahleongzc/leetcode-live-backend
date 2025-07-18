@@ -11,8 +11,8 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
-	"github.com/ahleongzc/leetcode-live-backend/internal/handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/middleware"
+	"github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/http_handler/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
@@ -25,6 +25,7 @@ import (
 // Injectors from wire.go:
 
 func InitializeApplication() (*app.Application, error) {
+	logger := zerolog.NewZerologLogger()
 	databaseConfig, err := config.LoadDatabaseConfig()
 	if err != nil {
 		return nil, err
@@ -40,7 +41,6 @@ func InitializeApplication() (*app.Application, error) {
 	settingRepo := repo.NewSettingRepo(db)
 	userService := service.NewUserService(userRepo, settingRepo)
 	userHandler := handler.NewUserHandler(userService)
-	logger := zerolog.NewZerologLogger()
 	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
 	transcriptRepo := repo.NewTranscriptRepo(db)
 	transcriptManager := service.NewTranscriptManager(transcriptRepo)
@@ -102,6 +102,6 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	inMemoryCallbackQueueRepo := repo.NewInMemoryCallbackQueueRepo(inMemoryQueueConfig)
 	workerPool := background.NewWorkerPool(inMemoryCallbackQueueRepo, logger)
-	application := app.NewApplication(authHandler, userHandler, middlewareMiddleware, healthHandler, reviewConsumer, interviewHandler, houseKeeper, workerPool)
+	application := app.NewApplication(logger, authHandler, userHandler, middlewareMiddleware, healthHandler, reviewConsumer, interviewHandler, houseKeeper, workerPool)
 	return application, nil
 }
