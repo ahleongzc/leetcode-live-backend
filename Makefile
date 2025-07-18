@@ -6,7 +6,7 @@ run: setUpDev gen build
         echo "model.bin not found. Running training..."; \
         make train; \
     fi
-	@air
+	@./bin/app
 
 fasttext:
 	@if [ ! -f ./bin/fasttext ]; then \

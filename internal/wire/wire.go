@@ -8,7 +8,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
-	httpHandler "github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
+	httphandler "github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/http_handler/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
@@ -16,6 +16,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/http"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/postgres"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/zerolog"
+	rpchandler "github.com/ahleongzc/leetcode-live-backend/internal/rpc_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 
 	"github.com/google/wire"
@@ -27,10 +28,12 @@ func InitializeApplication() (*app.Application, error) {
 		consumer.NewReviewConsumer,
 
 		// Handler
-		httpHandler.NewAuthHandler,
-		httpHandler.NewHealthHandler,
-		httpHandler.NewInterviewHandler,
-		httpHandler.NewUserHandler,
+		httphandler.NewAuthHandler,
+		httphandler.NewHealthHandler,
+		httphandler.NewInterviewHandler,
+		httphandler.NewUserHandler,
+
+		rpchandler.NewProxyHandler,
 
 		// Service
 		service.NewUserService,

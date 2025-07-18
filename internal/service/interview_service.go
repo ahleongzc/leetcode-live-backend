@@ -77,7 +77,7 @@ type InterviewServiceImpl struct {
 // TimeChecker implements InterviewService.
 func (i *InterviewServiceImpl) HandleInterviewTimesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	ongoingInterview, err := i.interviewRepo.GetByID(ctx, interviewID)
-	if err != nil && !errors.Is(err, common.ErrNotFound) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -425,11 +425,12 @@ func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uin
 // The validation have to happen here as websockets can only pass the token in query params
 func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context, token string) (*entity.Interview, error) {
 	interview, err := i.interviewRepo.GetByToken(ctx, token)
-	if err != nil && !errors.Is(err, common.ErrNotFound) {
+	if err != nil {
 		return nil, err
 	}
 
 	if !interview.Exists() {
+		fmt.Println("WOWOWOW")
 		return nil, common.ErrUnauthorized
 	}
 

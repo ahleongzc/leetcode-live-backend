@@ -19,14 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	InterviewProxy_StartInterview_FullMethodName = "/InterviewProxy/StartInterview"
+	InterviewProxy_VerifyCandidate_FullMethodName = "/InterviewProxy/VerifyCandidate"
 )
 
 // InterviewProxyClient is the client API for InterviewProxy service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InterviewProxyClient interface {
-	StartInterview(ctx context.Context, in *StartInterviewRequest, opts ...grpc.CallOption) (*StartInterviewResponse, error)
+	VerifyCandidate(ctx context.Context, in *VerifyCandidateRequest, opts ...grpc.CallOption) (*VerificationResponse, error)
 }
 
 type interviewProxyClient struct {
@@ -37,10 +37,10 @@ func NewInterviewProxyClient(cc grpc.ClientConnInterface) InterviewProxyClient {
 	return &interviewProxyClient{cc}
 }
 
-func (c *interviewProxyClient) StartInterview(ctx context.Context, in *StartInterviewRequest, opts ...grpc.CallOption) (*StartInterviewResponse, error) {
+func (c *interviewProxyClient) VerifyCandidate(ctx context.Context, in *VerifyCandidateRequest, opts ...grpc.CallOption) (*VerificationResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(StartInterviewResponse)
-	err := c.cc.Invoke(ctx, InterviewProxy_StartInterview_FullMethodName, in, out, cOpts...)
+	out := new(VerificationResponse)
+	err := c.cc.Invoke(ctx, InterviewProxy_VerifyCandidate_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -51,7 +51,7 @@ func (c *interviewProxyClient) StartInterview(ctx context.Context, in *StartInte
 // All implementations must embed UnimplementedInterviewProxyServer
 // for forward compatibility.
 type InterviewProxyServer interface {
-	StartInterview(context.Context, *StartInterviewRequest) (*StartInterviewResponse, error)
+	VerifyCandidate(context.Context, *VerifyCandidateRequest) (*VerificationResponse, error)
 	mustEmbedUnimplementedInterviewProxyServer()
 }
 
@@ -62,8 +62,8 @@ type InterviewProxyServer interface {
 // pointer dereference when methods are called.
 type UnimplementedInterviewProxyServer struct{}
 
-func (UnimplementedInterviewProxyServer) StartInterview(context.Context, *StartInterviewRequest) (*StartInterviewResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method StartInterview not implemented")
+func (UnimplementedInterviewProxyServer) VerifyCandidate(context.Context, *VerifyCandidateRequest) (*VerificationResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method VerifyCandidate not implemented")
 }
 func (UnimplementedInterviewProxyServer) mustEmbedUnimplementedInterviewProxyServer() {}
 func (UnimplementedInterviewProxyServer) testEmbeddedByValue()                        {}
@@ -86,20 +86,20 @@ func RegisterInterviewProxyServer(s grpc.ServiceRegistrar, srv InterviewProxySer
 	s.RegisterService(&InterviewProxy_ServiceDesc, srv)
 }
 
-func _InterviewProxy_StartInterview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(StartInterviewRequest)
+func _InterviewProxy_VerifyCandidate_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyCandidateRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(InterviewProxyServer).StartInterview(ctx, in)
+		return srv.(InterviewProxyServer).VerifyCandidate(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: InterviewProxy_StartInterview_FullMethodName,
+		FullMethod: InterviewProxy_VerifyCandidate_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(InterviewProxyServer).StartInterview(ctx, req.(*StartInterviewRequest))
+		return srv.(InterviewProxyServer).VerifyCandidate(ctx, req.(*VerifyCandidateRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -112,8 +112,8 @@ var InterviewProxy_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*InterviewProxyServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "StartInterview",
-			Handler:    _InterviewProxy_StartInterview_Handler,
+			MethodName: "VerifyCandidate",
+			Handler:    _InterviewProxy_VerifyCandidate_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

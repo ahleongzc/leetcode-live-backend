@@ -3,11 +3,39 @@ package rpchandler
 import (
 	"context"
 
+	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/proto"
 )
 
-type ProxyHandler struct{}
+func NewProxyHandler(
+	interviewService service.InterviewService,
+) *ProxyHandler {
+	return &ProxyHandler{
+		interviewService: interviewService,
+	}
+}
 
-func (p *ProxyHandler) StartInterview(ctx context.Context, req *proto.StartInterviewRequest) (*proto.StartInterviewResponse, error) {
-	return nil, nil
+type ProxyHandler struct {
+	proto.UnimplementedInterviewProxyServer
+	interviewService service.InterviewService
+}
+
+func (p *ProxyHandler) VerifyCandidate(ctx context.Context, req *proto.VerifyCandidateRequest) (*proto.VerificationResponse, error) {
+	token := req.GetToken()
+	if token == "" {
+		return nil, RPCErrUnauthorized
+	}
+
+	interview, err := p.interviewService.ConsumeTokenAndStartInterview(ctx, token)
+	if err != nil {
+		return nil, MapToRPCError(err)
+	}
+
+	resp := &proto.VerificationResponse{
+		Interview: &proto.Interview{
+			Id: uint64(interview.ID),
+		},
+	}
+
+	return resp, nil
 }

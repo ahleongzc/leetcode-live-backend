@@ -19,6 +19,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/http"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/postgres"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/zerolog"
+	"github.com/ahleongzc/leetcode-live-backend/internal/rpc_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 )
 
@@ -26,25 +27,6 @@ import (
 
 func InitializeApplication() (*app.Application, error) {
 	logger := zerolog.NewZerologLogger()
-	databaseConfig, err := config.LoadDatabaseConfig()
-	if err != nil {
-		return nil, err
-	}
-	db, err := postgres.NewPostgresDatabase(databaseConfig)
-	if err != nil {
-		return nil, err
-	}
-	sessionRepo := repo.NewSessionRepo(db)
-	userRepo := repo.NewUserRepo(db)
-	authService := service.NewAuthService(sessionRepo, userRepo)
-	authHandler := handler.NewAuthHandler(authService)
-	settingRepo := repo.NewSettingRepo(db)
-	userService := service.NewUserService(userRepo, settingRepo)
-	userHandler := handler.NewUserHandler(userService)
-	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
-	transcriptRepo := repo.NewTranscriptRepo(db)
-	transcriptManager := service.NewTranscriptManager(transcriptRepo)
-	healthHandler := handler.NewHealthHandler(transcriptManager)
 	ttsConfig, err := config.LoadTTSConfig()
 	if err != nil {
 		return nil, err
@@ -63,16 +45,24 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	aiUseCase := service.NewAIUseCase(ttsRepo, llmRepo)
-	reviewRepo := repo.NewReviewRepo(db)
-	interviewRepo := repo.NewInterviewRepo(db)
-	reviewService := service.NewReviewService(aiUseCase, reviewRepo, interviewRepo, transcriptManager)
-	messageQueueConfig, err := config.LoadMessageQueueConfig()
+	databaseConfig, err := config.LoadDatabaseConfig()
 	if err != nil {
 		return nil, err
 	}
-	messageQueueRepo := repo.NewMessageQueueRepo(messageQueueConfig)
-	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
-	websocketConfig := config.LoadWebsocketConfig()
+	db, err := postgres.NewPostgresDatabase(databaseConfig)
+	if err != nil {
+		return nil, err
+	}
+	userRepo := repo.NewUserRepo(db)
+	settingRepo := repo.NewSettingRepo(db)
+	userService := service.NewUserService(userRepo, settingRepo)
+	sessionRepo := repo.NewSessionRepo(db)
+	authService := service.NewAuthService(sessionRepo, userRepo)
+	reviewRepo := repo.NewReviewRepo(db)
+	interviewRepo := repo.NewInterviewRepo(db)
+	transcriptRepo := repo.NewTranscriptRepo(db)
+	transcriptManager := service.NewTranscriptManager(transcriptRepo)
+	reviewService := service.NewReviewService(aiUseCase, reviewRepo, interviewRepo, transcriptManager)
 	questionRepo := repo.NewQuestionRepo(db)
 	questionService := service.NewQuestionService(questionRepo)
 	objectStorageConfig, err := config.LoadObjectStorageConfig()
@@ -84,6 +74,11 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	fileRepo := repo.NewFileRepo(s3Client, objectStorageConfig)
+	messageQueueConfig, err := config.LoadMessageQueueConfig()
+	if err != nil {
+		return nil, err
+	}
+	messageQueueRepo := repo.NewMessageQueueRepo(messageQueueConfig)
 	intentClassificationConfig, err := config.LoadIntentClassificationConfig()
 	if err != nil {
 		return nil, err
@@ -94,7 +89,14 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
 	interviewService := service.NewInterviewService(aiUseCase, userService, authService, reviewService, questionService, transcriptManager, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
-	interviewHandler := handler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
+	proxyHandler := rpchandler.NewProxyHandler(interviewService)
+	authHandler := httphandler.NewAuthHandler(authService)
+	userHandler := httphandler.NewUserHandler(userService)
+	healthHandler := httphandler.NewHealthHandler(transcriptManager)
+	websocketConfig := config.LoadWebsocketConfig()
+	interviewHandler := httphandler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
+	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
+	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
 	if err != nil {
@@ -102,6 +104,6 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	inMemoryCallbackQueueRepo := repo.NewInMemoryCallbackQueueRepo(inMemoryQueueConfig)
 	workerPool := background.NewWorkerPool(inMemoryCallbackQueueRepo, logger)
-	application := app.NewApplication(logger, authHandler, userHandler, middlewareMiddleware, healthHandler, reviewConsumer, interviewHandler, houseKeeper, workerPool)
+	application := app.NewApplication(logger, proxyHandler, authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, reviewConsumer, houseKeeper, workerPool)
 	return application, nil
 }

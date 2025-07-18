@@ -147,7 +147,7 @@ func (i *InterviewRepoImpl) GetByID(ctx context.Context, id uint) (*entity.Inter
 	if err := i.db.WithContext(ctx).
 		First(interview, id).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("interview not found: %w", common.ErrNotFound)
+			return nil, nil
 		}
 		return nil, fmt.Errorf("unable to get interview with id %d, %s: %w", id, err.Error(), common.ErrInternalServerError)
 	}
@@ -164,7 +164,7 @@ func (i *InterviewRepoImpl) GetByToken(ctx context.Context, token string) (*enti
 		Where("token = ?", token).
 		First(interview).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("interview not found: %w", common.ErrNotFound)
+			return nil, nil
 		}
 		return nil, fmt.Errorf("unable to get interview with token %s, %s: %w", token, err.Error(), common.ErrInternalServerError)
 	}
