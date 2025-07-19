@@ -27,6 +27,26 @@ import (
 
 func InitializeApplication() (*app.Application, error) {
 	logger := zerolog.NewZerologLogger()
+	databaseConfig, err := config.LoadDatabaseConfig()
+	if err != nil {
+		return nil, err
+	}
+	db, err := postgres.NewPostgresDatabase(databaseConfig)
+	if err != nil {
+		return nil, err
+	}
+	sessionRepo := repo.NewSessionRepo(db)
+	userRepo := repo.NewUserRepo(db)
+	authService := service.NewAuthService(sessionRepo, userRepo)
+	middleware := httpmiddleware.NewMiddleware(authService, logger)
+	authHandler := httphandler.NewAuthHandler(authService)
+	settingRepo := repo.NewSettingRepo(db)
+	userService := service.NewUserService(userRepo, settingRepo)
+	userHandler := httphandler.NewUserHandler(userService)
+	transcriptRepo := repo.NewTranscriptRepo(db)
+	transcriptManager := service.NewTranscriptManager(transcriptRepo)
+	healthHandler := httphandler.NewHealthHandler(transcriptManager)
+	websocketConfig := config.LoadWebsocketConfig()
 	ttsConfig, err := config.LoadTTSConfig()
 	if err != nil {
 		return nil, err
@@ -45,23 +65,8 @@ func InitializeApplication() (*app.Application, error) {
 		return nil, err
 	}
 	aiUseCase := service.NewAIUseCase(ttsRepo, llmRepo)
-	databaseConfig, err := config.LoadDatabaseConfig()
-	if err != nil {
-		return nil, err
-	}
-	db, err := postgres.NewPostgresDatabase(databaseConfig)
-	if err != nil {
-		return nil, err
-	}
-	userRepo := repo.NewUserRepo(db)
-	settingRepo := repo.NewSettingRepo(db)
-	userService := service.NewUserService(userRepo, settingRepo)
-	sessionRepo := repo.NewSessionRepo(db)
-	authService := service.NewAuthService(sessionRepo, userRepo)
 	reviewRepo := repo.NewReviewRepo(db)
 	interviewRepo := repo.NewInterviewRepo(db)
-	transcriptRepo := repo.NewTranscriptRepo(db)
-	transcriptManager := service.NewTranscriptManager(transcriptRepo)
 	reviewService := service.NewReviewService(aiUseCase, reviewRepo, interviewRepo, transcriptManager)
 	questionRepo := repo.NewQuestionRepo(db)
 	questionService := service.NewQuestionService(questionRepo)
@@ -89,13 +94,13 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
 	interviewService := service.NewInterviewService(aiUseCase, userService, authService, reviewService, questionService, transcriptManager, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
-	proxyHandler := rpchandler.NewProxyHandler(interviewService)
-	authHandler := httphandler.NewAuthHandler(authService)
-	userHandler := httphandler.NewUserHandler(userService)
-	healthHandler := httphandler.NewHealthHandler(transcriptManager)
-	websocketConfig := config.LoadWebsocketConfig()
 	interviewHandler := httphandler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
-	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
+	httpServer, err := app.NewHTTPServer(logger, middleware, authHandler, userHandler, healthHandler, interviewHandler)
+	if err != nil {
+		return nil, err
+	}
+	proxyHandler := rpchandler.NewProxyHandler(interviewService)
+	rpcServer := app.NewRPCServer(logger, proxyHandler)
 	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
@@ -104,6 +109,6 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	inMemoryCallbackQueueRepo := repo.NewInMemoryCallbackQueueRepo(inMemoryQueueConfig)
 	workerPool := background.NewWorkerPool(inMemoryCallbackQueueRepo, logger)
-	application := app.NewApplication(logger, proxyHandler, authHandler, userHandler, healthHandler, interviewHandler, middlewareMiddleware, reviewConsumer, houseKeeper, workerPool)
+	application := app.NewApplication(httpServer, rpcServer, reviewConsumer, houseKeeper, workerPool)
 	return application, nil
 }

@@ -19,8 +19,10 @@ const (
 	WRITE_TO_FILE_TIMEOUT            time.Duration = 5 * time.Second
 	MESSAGE_QUEUE_CONNECTION_TIMEOUT time.Duration = 30 * time.Second
 
+	// RCP && HTTP
+	PAYLOAD_MAX_BYTES int = 1_048_576
+
 	// HTTP
-	INCOMING_PAYLOAD_MAX_BYTES int    = 1_048_576
 	SESSION_TOKEN_HEADER_KEY   string = "X-Session-Token"
 	INTERVIEW_TOKEN_HEADER_KEY string = "X-Interview-Token"
 

@@ -83,7 +83,7 @@ func ReadJSONBytes(data []byte, dst any) error {
 		return fmt.Errorf("dst cannot be nil when calling readJSON for websockets: %w", common.ErrInternalServerError)
 	}
 
-	maxBytes := config.INCOMING_PAYLOAD_MAX_BYTES
+	maxBytes := config.PAYLOAD_MAX_BYTES
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
 
@@ -100,7 +100,7 @@ func ReadJSONHTTPReq(w http.ResponseWriter, r *http.Request, dst any) error {
 		return fmt.Errorf("dst cannot be nil when calling readJSON for http: %w", common.ErrInternalServerError)
 	}
 
-	maxBytes := config.INCOMING_PAYLOAD_MAX_BYTES
+	maxBytes := config.PAYLOAD_MAX_BYTES
 	r.Body = http.MaxBytesReader(w, r.Body, int64(maxBytes))
 
 	dec := json.NewDecoder(r.Body)

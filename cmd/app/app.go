@@ -7,61 +7,36 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
-	httphandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
-	rpchandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/rpc_handler"
-
-	"github.com/rs/zerolog"
 )
 
 type Application struct {
-	logger *zerolog.Logger
-
-	proxyHandler *rpchandler.ProxyHandler
-
-	authHandler      *httphandler.AuthHandler
-	userHandler      *httphandler.UserHandler
-	healthHandler    *httphandler.HealthHandler
-	interviewHandler *httphandler.InterviewHandler
-
-	middleware *middleware.Middleware
+	HTTPServer *HTTPServer
+	RPCServer  *RPCServer
 
 	reviewConsumer *consumer.ReviewConsumer
+	housekeeper    background.HouseKeeper
+	workerPool     background.WorkerPool
 
-	wg *sync.WaitGroup
-
-	housekeeper background.HouseKeeper
-	workerPool  background.WorkerPool
+	wg             *sync.WaitGroup
 }
 
 func NewApplication(
-	logger *zerolog.Logger,
-
-	proxyHandler *rpchandler.ProxyHandler,
-
-	authHandler *httphandler.AuthHandler,
-	userHandler *httphandler.UserHandler,
-	healthHandler *httphandler.HealthHandler,
-	interviewHandler *httphandler.InterviewHandler,
-
-	middleware *middleware.Middleware,
+	httpServer *HTTPServer,
+	rpcServer *RPCServer,
 
 	reviewConsumer *consumer.ReviewConsumer,
 	housekeeper background.HouseKeeper,
 	workerPool background.WorkerPool,
 ) *Application {
 	return &Application{
-		logger:           logger,
-		proxyHandler:     proxyHandler,
-		authHandler:      authHandler,
-		userHandler:      userHandler,
-		healthHandler:    healthHandler,
-		interviewHandler: interviewHandler,
-		middleware:       middleware,
-		housekeeper:      housekeeper,
-		workerPool:       workerPool,
-		reviewConsumer:   reviewConsumer,
-		wg:               &sync.WaitGroup{},
+		HTTPServer: httpServer,
+		RPCServer:  rpcServer,
+
+		housekeeper:    housekeeper,
+		workerPool:     workerPool,
+		reviewConsumer: reviewConsumer,
+
+		wg: &sync.WaitGroup{},
 	}
 }
 

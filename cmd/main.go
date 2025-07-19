@@ -24,23 +24,23 @@ func main() {
 	errChan := make(chan error)
 	defer close(errChan)
 
-	waitForTermination(errChan)
+	listenForTermination(errChan)
 
 	ctx := context.Background()
 
-	httpServer := app.StartHTTPServer(errChan)
-	rpcServer := app.StartRPCServer(errChan)
+	httpServer := app.HTTPServer.Serve(errChan)
+	rpcServer := app.RPCServer.Serve(errChan)
 
 	app.StartHouseKeeping(ctx, config.HOUSEKEEPING_INTERVAL)
 	app.StartConsumers(ctx, config.CONSUMER_POOL_SIZE)
 
 	<-errChan
 
-	httpServer.Shutdown(ctx)
-	rpcServer.GracefulStop()
+	httpServer.GracefullyTerminate(ctx)
+	rpcServer.GracefullyTerminate(ctx)
 }
 
-func waitForTermination(errChan chan error) {
+func listenForTermination(errChan chan error) {
 	go func() {
 		signalChan := make(chan os.Signal, 1)
 		signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
