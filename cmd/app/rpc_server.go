@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
-	"github.com/ahleongzc/leetcode-live-backend/proto"
+	"github.com/ahleongzc/leetcode-live-backend/pb"
 
 	"google.golang.org/grpc"
 )
@@ -20,7 +20,7 @@ func (a *Application) StartRPCServer(errChan chan error) *grpc.Server {
 	}
 
 	srv := grpc.NewServer()
-	proto.RegisterInterviewProxyServer(srv, a.proxyHandler)
+	pb.RegisterInterviewProxyServer(srv, a.proxyHandler)
 
 	go func() {
 		if err := srv.Serve(lis); err != nil {

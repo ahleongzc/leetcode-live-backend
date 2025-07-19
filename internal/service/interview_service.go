@@ -27,6 +27,7 @@ type InterviewService interface {
 	GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error)
 	SetUpNewInterviewForCandidate(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
 	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error)
+	ProcessCandidateMessage(ctx context.Context, interviewID uint, chunk, code string) (*model.InterviewerResponse, error)
 }
 
 func NewInterviewService(
@@ -72,6 +73,46 @@ type InterviewServiceImpl struct {
 	interviewRepo            repo.InterviewRepo
 	intentClassificationRepo repo.IntentClassificationRepo
 	messageQueueRepo         repo.MessageQueueProducerRepo
+}
+
+// ProcessCandidateRequest implements InterviewService.
+func (i *InterviewServiceImpl) ProcessCandidateMessage(ctx context.Context, interviewID uint, chunk, code string) (*model.InterviewerResponse, error) {
+	if err := i.transcriptManager.WriteCandidate(ctx, interviewID, chunk); err != nil {
+		return nil, err
+	}
+
+	sufficient, err := i.transcriptManager.HasSufficientWordsInBuffer(ctx, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	if !sufficient {
+		return nil, nil
+	}
+
+	intent, err := i.intentClassificationRepo.ClassifyIntent(ctx, i.transcriptManager.GetSentenceInBuffer(ctx, interviewID))
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.FlushCandidate(ctx, interviewID); err != nil {
+		return nil, err
+	}
+
+	if util.IsDevEnv() {
+		intent, score := intent.GetIntentWithHighestConfidenceWithScoreOutOf100()
+		if intent == model.OTHERS {
+			fmt.Println("!!! Needs to generate reply !!!")
+		}
+		fmt.Printf("The current message chunk is '%s', the score is %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), score)
+	}
+
+	resp, err := i.handleCandidateIntent(ctx, interviewID, intent)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
 }
 
 // TimeChecker implements InterviewService.
@@ -400,6 +441,28 @@ func (i *InterviewServiceImpl) ProcessIncomingMessage(ctx context.Context, inter
 	return response, nil
 }
 
+func (i *InterviewServiceImpl) handleCandidateIntent(ctx context.Context, interviewID uint, intentDetail *model.IntentDetail) (*model.InterviewerResponse, error) {
+	if !intentDetail.Exists() {
+		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
+	}
+
+	intent, score := intentDetail.GetIntentWithHighestConfidenceWithScoreOutOf100()
+	if intent == model.CANDIDATE_EXPLANATION {
+		return i.listenToCandidate(ctx, interviewID)
+	}
+
+	// Others mean you would need to answer back, the candidate might be asking for clarification or hints etc etc
+	// This will only be triggered if the score is more than 70 out of 100
+	if intent == model.OTHERS {
+		if score > 70 {
+			return i.answerCandidate(ctx, interviewID)
+		}
+		return i.listenToCandidate(ctx, interviewID)
+	}
+
+	return nil, fmt.Errorf("invalid intent %v: %w,", util.ToPtr(intent), common.ErrInternalServerError)
+}
+
 func (i *InterviewServiceImpl) handleIntent(ctx context.Context, interviewID uint, intentDetail *model.IntentDetail) (*model.WebSocketMessage, error) {
 	if !intentDetail.Exists() {
 		return nil, fmt.Errorf("intent cannot be nil: %w", common.ErrInternalServerError)
@@ -523,8 +586,47 @@ func (i *InterviewServiceImpl) getInterviewQuestionDescription(ctx context.Conte
 }
 
 // TODO: Add more functionalities here like logging?
+func (i *InterviewServiceImpl) listenToCandidate(ctx context.Context, interviewID uint) (*model.InterviewerResponse, error) {
+	return nil, nil
+}
+
+// TODO: Add more functionalities here like logging?
 func (i *InterviewServiceImpl) listen(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
 	return nil, nil
+}
+
+func (i *InterviewServiceImpl) answerCandidate(ctx context.Context, interviewID uint) (*model.InterviewerResponse, error) {
+	prompt := `
+		Based on the transcript history, you are now tasked to reply to the candidate.
+		If the candidate is asking for a hint, you must answer in a way that helps them better understand the problem without giving away the solution.
+		Provide only as much information as needed to address their question directly.
+		Avoid adding extra hints or restating parts of the problem unless it's necessary for clarification.
+		If the candidate asks about constraints, clarification on the problem, edge cases, or assumptions, answer truthfully and succinctly.
+		Be clear, concise, and professional — just like you would be in a real interview.
+	`
+	replyToCandidate, err := i.generateTextReply(ctx, prompt, interviewID)
+	if err != nil {
+		return nil, err
+	}
+
+	reader, err := i.generateSpeechReply(ctx, replyToCandidate)
+	if err != nil {
+		return nil, err
+	}
+
+	url, err := i.uploadVoiceReply(ctx, interviewID, reader)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := i.transcriptManager.WriteInterviewer(ctx, interviewID, replyToCandidate, url); err != nil {
+		return nil, err
+	}
+
+	resp := model.NewInterviewerResponse().
+		SetURL(url)
+
+	return resp, nil
 }
 
 func (i *InterviewServiceImpl) timesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {

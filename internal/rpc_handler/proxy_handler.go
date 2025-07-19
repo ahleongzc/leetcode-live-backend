@@ -2,9 +2,10 @@ package rpchandler
 
 import (
 	"context"
+	"io"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
-	"github.com/ahleongzc/leetcode-live-backend/proto"
+	"github.com/ahleongzc/leetcode-live-backend/pb"
 )
 
 func NewProxyHandler(
@@ -16,11 +17,49 @@ func NewProxyHandler(
 }
 
 type ProxyHandler struct {
-	proto.UnimplementedInterviewProxyServer
+	pb.UnimplementedInterviewProxyServer
 	interviewService service.InterviewService
 }
 
-func (p *ProxyHandler) VerifyCandidate(ctx context.Context, req *proto.VerifyCandidateRequest) (*proto.VerificationResponse, error) {
+func (p *ProxyHandler) ProcessIncomingMessage(stream pb.InterviewProxy_ProcessIncomingMessageServer) error {
+	ctx := stream.Context()
+
+	for {
+		in, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return MapToRPCError(err)
+		}
+
+		res, err := p.interviewService.ProcessCandidateMessage(
+			ctx,
+			uint(in.GetInterviewId()),
+			in.GetChunk(),
+			in.GetCode(),
+		)
+		if err != nil {
+			return MapToRPCError(err)
+		}
+
+		if !res.Exists() {
+			continue
+		}
+
+		out := &pb.InterviewMessage{
+			Source: pb.Source_SERVER,
+			Url:    res.URL,
+			End:    res.End,
+		}
+
+		if err := stream.Send(out); err != nil {
+			return MapToRPCError(err)
+		}
+	}
+}
+
+func (p *ProxyHandler) VerifyCandidate(ctx context.Context, req *pb.VerifyCandidateRequest) (*pb.VerificationResponse, error) {
 	token := req.GetToken()
 	if token == "" {
 		return nil, RPCErrUnauthorized
@@ -31,8 +70,8 @@ func (p *ProxyHandler) VerifyCandidate(ctx context.Context, req *proto.VerifyCan
 		return nil, MapToRPCError(err)
 	}
 
-	resp := &proto.VerificationResponse{
-		Interview: &proto.Interview{
+	resp := &pb.VerificationResponse{
+		Interview: &pb.Interview{
 			Id: uint64(interview.ID),
 		},
 	}

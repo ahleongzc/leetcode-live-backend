@@ -2,6 +2,34 @@ package model
 
 import "github.com/ahleongzc/leetcode-live-backend/internal/util"
 
+type InterviewerResponse struct {
+	URL string
+	End bool
+}
+
+func NewInterviewerResponse() *InterviewerResponse {
+	return &InterviewerResponse{}
+}
+
+func (i *InterviewerResponse) SetURL(url string) *InterviewerResponse {
+	if i == nil {
+		return nil
+	}
+	i.URL = url
+	return i
+}
+
+func (i *InterviewerResponse) EndInterview() {
+	if i == nil {
+		return
+	}
+	i.End = true
+}
+
+func (i *InterviewerResponse) Exists() bool {
+	return i != nil
+}
+
 type InterviewHistory struct {
 	Interviews []*Interview `json:"interviews"`
 }

@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: proto/interview_proxy.proto
+// source: pb/interview_proxy.proto
 
-package proto
+package pb
 
 import (
 	context "context"
@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	InterviewProxy_VerifyCandidate_FullMethodName = "/InterviewProxy/VerifyCandidate"
+	InterviewProxy_VerifyCandidate_FullMethodName        = "/InterviewProxy/VerifyCandidate"
+	InterviewProxy_ProcessIncomingMessage_FullMethodName = "/InterviewProxy/ProcessIncomingMessage"
 )
 
 // InterviewProxyClient is the client API for InterviewProxy service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type InterviewProxyClient interface {
 	VerifyCandidate(ctx context.Context, in *VerifyCandidateRequest, opts ...grpc.CallOption) (*VerificationResponse, error)
+	ProcessIncomingMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[InterviewMessage, InterviewMessage], error)
 }
 
 type interviewProxyClient struct {
@@ -47,11 +49,25 @@ func (c *interviewProxyClient) VerifyCandidate(ctx context.Context, in *VerifyCa
 	return out, nil
 }
 
+func (c *interviewProxyClient) ProcessIncomingMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[InterviewMessage, InterviewMessage], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &InterviewProxy_ServiceDesc.Streams[0], InterviewProxy_ProcessIncomingMessage_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[InterviewMessage, InterviewMessage]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type InterviewProxy_ProcessIncomingMessageClient = grpc.BidiStreamingClient[InterviewMessage, InterviewMessage]
+
 // InterviewProxyServer is the server API for InterviewProxy service.
 // All implementations must embed UnimplementedInterviewProxyServer
 // for forward compatibility.
 type InterviewProxyServer interface {
 	VerifyCandidate(context.Context, *VerifyCandidateRequest) (*VerificationResponse, error)
+	ProcessIncomingMessage(grpc.BidiStreamingServer[InterviewMessage, InterviewMessage]) error
 	mustEmbedUnimplementedInterviewProxyServer()
 }
 
@@ -64,6 +80,9 @@ type UnimplementedInterviewProxyServer struct{}
 
 func (UnimplementedInterviewProxyServer) VerifyCandidate(context.Context, *VerifyCandidateRequest) (*VerificationResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method VerifyCandidate not implemented")
+}
+func (UnimplementedInterviewProxyServer) ProcessIncomingMessage(grpc.BidiStreamingServer[InterviewMessage, InterviewMessage]) error {
+	return status.Errorf(codes.Unimplemented, "method ProcessIncomingMessage not implemented")
 }
 func (UnimplementedInterviewProxyServer) mustEmbedUnimplementedInterviewProxyServer() {}
 func (UnimplementedInterviewProxyServer) testEmbeddedByValue()                        {}
@@ -104,6 +123,13 @@ func _InterviewProxy_VerifyCandidate_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InterviewProxy_ProcessIncomingMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(InterviewProxyServer).ProcessIncomingMessage(&grpc.GenericServerStream[InterviewMessage, InterviewMessage]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type InterviewProxy_ProcessIncomingMessageServer = grpc.BidiStreamingServer[InterviewMessage, InterviewMessage]
+
 // InterviewProxy_ServiceDesc is the grpc.ServiceDesc for InterviewProxy service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -116,6 +142,13 @@ var InterviewProxy_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _InterviewProxy_VerifyCandidate_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
-	Metadata: "proto/interview_proxy.proto",
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "ProcessIncomingMessage",
+			Handler:       _InterviewProxy_ProcessIncomingMessage_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
+	},
+	Metadata: "pb/interview_proxy.proto",
 }
