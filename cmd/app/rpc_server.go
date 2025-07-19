@@ -15,19 +15,18 @@ import (
 )
 
 type RPCServer struct {
-	srv    *grpc.Server
-	logger *zerolog.Logger
+	srv             *grpc.Server
+	logger          *zerolog.Logger
+	rpcServerConfig *config.RPCServerConfig
 
 	proxyHandler *rpchandler.ProxyHandler
 }
 
 func NewRPCServer(
 	logger *zerolog.Logger,
-
+	rpcServerConfig *config.RPCServerConfig,
 	proxyHandler *rpchandler.ProxyHandler,
 ) *RPCServer {
-	rpcServerConfig := config.LoadRPCServerConfig()
-
 	srv := grpc.NewServer(
 		grpc.ConnectionTimeout(rpcServerConfig.ConnectionTimeout),
 		grpc.MaxRecvMsgSize(int(rpcServerConfig.MaxRecvMsgSize)),
@@ -35,15 +34,15 @@ func NewRPCServer(
 	)
 
 	return &RPCServer{
-		srv:          srv,
-		logger:       logger,
-		proxyHandler: proxyHandler,
+		srv:             srv,
+		logger:          logger,
+		proxyHandler:    proxyHandler,
+		rpcServerConfig: rpcServerConfig,
 	}
 }
 
 func (rs *RPCServer) Serve(errChan chan error) *RPCServer {
-	rpcServerConfig := config.LoadRPCServerConfig()
-	lis, err := net.Listen("tcp", rpcServerConfig.Address)
+	lis, err := net.Listen("tcp", rs.rpcServerConfig.Address)
 	if err != nil {
 		errChan <- err
 		return nil

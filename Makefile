@@ -1,5 +1,5 @@
 .DEFAULT: run
-.PHONY: run build gen vet fmt count train infra fasttext compile
+.PHONY: run build gen vet fmt count train fasttext compile
 
 run: setUpDev gen build
 	@if [ ! -f ./bin/model.bin ]; then \

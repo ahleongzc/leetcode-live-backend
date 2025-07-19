@@ -15,9 +15,10 @@ import (
 )
 
 type HTTPServer struct {
-	srv        *http.Server
-	logger     *zerolog.Logger
-	middleware *httpmiddleware.Middleware
+	srv              *http.Server
+	logger           *zerolog.Logger
+	middleware       *httpmiddleware.Middleware
+	httpServerConfig *config.HTTPServerConfig
 
 	authHandler      *httphandler.AuthHandler
 	userHandler      *httphandler.UserHandler
@@ -28,14 +29,13 @@ type HTTPServer struct {
 func NewHTTPServer(
 	logger *zerolog.Logger,
 	middleware *httpmiddleware.Middleware,
+	httpServerConfig *config.HTTPServerConfig,
 
 	authHandler *httphandler.AuthHandler,
 	userHandler *httphandler.UserHandler,
 	healthHandler *httphandler.HealthHandler,
 	interviewHandler *httphandler.InterviewHandler,
-) (*HTTPServer, error) {
-	httpServerConfig := config.LoadHTTPServerConfig()
-
+) *HTTPServer {
 	srv := &http.Server{
 		Addr:         httpServerConfig.Address,
 		IdleTimeout:  httpServerConfig.IdleTimeout,
@@ -51,7 +51,8 @@ func NewHTTPServer(
 		userHandler:      userHandler,
 		healthHandler:    healthHandler,
 		interviewHandler: interviewHandler,
-	}, nil
+		httpServerConfig: httpServerConfig,
+	}
 }
 
 func (hs *HTTPServer) Serve(errChan chan error) *HTTPServer {

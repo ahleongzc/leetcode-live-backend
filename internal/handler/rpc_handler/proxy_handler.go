@@ -21,6 +21,7 @@ type ProxyHandler struct {
 	interviewService service.InterviewService
 }
 
+// TODO: See how to terminate this stream when the server is terminated as stream.Recv is a blocking operation
 func (p *ProxyHandler) ProcessIncomingMessage(stream pb.InterviewProxy_ProcessIncomingMessageServer) error {
 	ctx := stream.Context()
 

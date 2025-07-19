@@ -27,12 +27,13 @@ func InitializeApplication() (*app.Application, error) {
 		// Consumer
 		consumer.NewReviewConsumer,
 
-		// Handler
+		// HTTP Handler
 		httphandler.NewAuthHandler,
 		httphandler.NewHealthHandler,
 		httphandler.NewInterviewHandler,
 		httphandler.NewUserHandler,
 
+		// RPC Handler
 		rpchandler.NewProxyHandler,
 
 		// Service
@@ -94,6 +95,8 @@ func InitializeApplication() (*app.Application, error) {
 		config.LoadWebsocketConfig,
 		config.LoadInMemoryQueueConfig,
 		config.LoadMessageQueueConfig,
+		config.LoadHTTPServerConfig,
+		config.LoadRPCServerConfig,
 		config.LoadIntentClassificationConfig,
 
 		// Middleware

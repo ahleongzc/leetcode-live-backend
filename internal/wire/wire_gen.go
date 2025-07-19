@@ -39,6 +39,7 @@ func InitializeApplication() (*app.Application, error) {
 	userRepo := repo.NewUserRepo(db)
 	authService := service.NewAuthService(sessionRepo, userRepo)
 	middleware := httpmiddleware.NewMiddleware(authService, logger)
+	httpServerConfig := config.LoadHTTPServerConfig()
 	authHandler := httphandler.NewAuthHandler(authService)
 	settingRepo := repo.NewSettingRepo(db)
 	userService := service.NewUserService(userRepo, settingRepo)
@@ -95,12 +96,10 @@ func InitializeApplication() (*app.Application, error) {
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
 	interviewService := service.NewInterviewService(aiUseCase, userService, authService, reviewService, questionService, transcriptManager, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
 	interviewHandler := httphandler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
-	httpServer, err := app.NewHTTPServer(logger, middleware, authHandler, userHandler, healthHandler, interviewHandler)
-	if err != nil {
-		return nil, err
-	}
+	httpServer := app.NewHTTPServer(logger, middleware, httpServerConfig, authHandler, userHandler, healthHandler, interviewHandler)
+	rpcServerConfig := config.LoadRPCServerConfig()
 	proxyHandler := rpchandler.NewProxyHandler(interviewService)
-	rpcServer := app.NewRPCServer(logger, proxyHandler)
+	rpcServer := app.NewRPCServer(logger, rpcServerConfig, proxyHandler)
 	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()
