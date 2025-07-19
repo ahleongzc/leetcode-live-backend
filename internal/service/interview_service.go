@@ -95,16 +95,16 @@ func (i *InterviewServiceImpl) ProcessCandidateMessage(ctx context.Context, inte
 		return nil, err
 	}
 
-	if err := i.transcriptManager.FlushCandidate(ctx, interviewID); err != nil {
-		return nil, err
-	}
-
 	if util.IsDevEnv() {
 		intent, score := intent.GetIntentWithHighestConfidenceWithScoreOutOf100()
 		if intent == model.OTHERS {
 			fmt.Println("!!! Needs to generate reply !!!")
 		}
 		fmt.Printf("The current message chunk is '%s', the score is %f\n", i.transcriptManager.GetSentenceInBuffer(ctx, interviewID), score)
+	}
+
+	if err := i.transcriptManager.FlushCandidate(ctx, interviewID); err != nil {
+		return nil, err
 	}
 
 	resp, err := i.handleCandidateIntent(ctx, interviewID, intent)
@@ -493,7 +493,6 @@ func (i *InterviewServiceImpl) ConsumeTokenAndStartInterview(ctx context.Context
 	}
 
 	if !interview.Exists() {
-		fmt.Println("WOWOWOW")
 		return nil, common.ErrUnauthorized
 	}
 

@@ -31,7 +31,7 @@ fmt:
 	@go fmt ./...
 
 count:
-	@cloc . --exclude-dir=scripts,.venv
+	@cloc . --exclude-dir=scripts,.venv,fastText-0.9.2
 
 train:
 	@cd scripts && python3 clean.py

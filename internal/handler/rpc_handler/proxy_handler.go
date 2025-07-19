@@ -30,7 +30,7 @@ func (p *ProxyHandler) ProcessIncomingMessage(stream pb.InterviewProxy_ProcessIn
 			return nil
 		}
 		if err != nil {
-			return MapToRPCError(err)
+			return HandleErroResponseRPC(err)
 		}
 
 		res, err := p.interviewService.ProcessCandidateMessage(
@@ -40,7 +40,7 @@ func (p *ProxyHandler) ProcessIncomingMessage(stream pb.InterviewProxy_ProcessIn
 			in.GetCode(),
 		)
 		if err != nil {
-			return MapToRPCError(err)
+			return HandleErroResponseRPC(err)
 		}
 
 		if !res.Exists() {
@@ -54,7 +54,7 @@ func (p *ProxyHandler) ProcessIncomingMessage(stream pb.InterviewProxy_ProcessIn
 		}
 
 		if err := stream.Send(out); err != nil {
-			return MapToRPCError(err)
+			return HandleErroResponseRPC(err)
 		}
 	}
 }
@@ -67,7 +67,7 @@ func (p *ProxyHandler) VerifyCandidate(ctx context.Context, req *pb.VerifyCandid
 
 	interview, err := p.interviewService.ConsumeTokenAndStartInterview(ctx, token)
 	if err != nil {
-		return nil, MapToRPCError(err)
+		return nil, HandleErroResponseRPC(err)
 	}
 
 	resp := &pb.VerificationResponse{

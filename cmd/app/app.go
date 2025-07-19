@@ -17,7 +17,7 @@ type Application struct {
 	housekeeper    background.HouseKeeper
 	workerPool     background.WorkerPool
 
-	wg             *sync.WaitGroup
+	wg *sync.WaitGroup
 }
 
 func NewApplication(
@@ -33,8 +33,8 @@ func NewApplication(
 		RPCServer:  rpcServer,
 
 		housekeeper:    housekeeper,
-		workerPool:     workerPool,
 		reviewConsumer: reviewConsumer,
+		workerPool:     workerPool,
 
 		wg: &sync.WaitGroup{},
 	}
