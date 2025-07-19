@@ -7,9 +7,9 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
-	httphandler "github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/http_handler/middleware"
-	rpchandler "github.com/ahleongzc/leetcode-live-backend/internal/rpc_handler"
+	httphandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
+	rpchandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/rpc_handler"
 
 	"github.com/rs/zerolog"
 )

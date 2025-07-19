@@ -7,7 +7,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
-	handler "github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
+	httphandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 
@@ -35,7 +35,7 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 		sessionToken := r.Header.Get(config.SESSION_TOKEN_HEADER_KEY)
 		updatedSessionToken, err := m.authService.ValidateAndRefreshSessionToken(ctx, sessionToken)
 		if err != nil {
-			handler.HandleErrorResponseHTTP(w, err)
+			httphandler.HandleErrorResponseHTTP(w, err)
 			return
 		}
 
@@ -54,7 +54,7 @@ func (m *Middleware) CORS(next http.Handler) http.Handler {
 
 		if util.IsProdEnv() {
 			if _, exists := trustedOrigins[origin]; !exists {
-				handler.HandleErrorResponseHTTP(w, common.ErrForbidden)
+				httphandler.HandleErrorResponseHTTP(w, common.ErrForbidden)
 				return
 			}
 		}
@@ -105,7 +105,7 @@ func (m *Middleware) RecoverPanic(next http.Handler) http.Handler {
 					Interface("panic", err).
 					Bytes("stackTrace", stackTrace).
 					Msg("panic recovered in request")
-				handler.HandleErrorResponseHTTP(w, fmt.Errorf("%w", common.ErrInternalServerError))
+				httphandler.HandleErrorResponseHTTP(w, fmt.Errorf("%w", common.ErrInternalServerError))
 			}
 		}()
 
@@ -118,13 +118,13 @@ func (m *Middleware) SetUserID(next http.Handler) http.Handler {
 		ctx := r.Context()
 		sessionToken, err := util.GetSessionToken(ctx)
 		if err != nil {
-			handler.HandleErrorResponseHTTP(w, err)
+			httphandler.HandleErrorResponseHTTP(w, err)
 			return
 		}
 
 		userID, err := m.authService.GetUserIDFromSessionToken(ctx, sessionToken)
 		if err != nil {
-			handler.HandleErrorResponseHTTP(w, err)
+			httphandler.HandleErrorResponseHTTP(w, err)
 			return
 		}
 
@@ -140,7 +140,7 @@ func (m *Middleware) SetSessionTokenInResponseHeader(next http.Handler) http.Han
 		ctx := r.Context()
 		sessionToken, err := util.GetSessionToken(ctx)
 		if err != nil {
-			handler.HandleErrorResponseHTTP(w, err)
+			httphandler.HandleErrorResponseHTTP(w, err)
 			return
 		}
 

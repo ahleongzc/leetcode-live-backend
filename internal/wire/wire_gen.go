@@ -11,15 +11,15 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/background"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
-	"github.com/ahleongzc/leetcode-live-backend/internal/http_handler"
-	"github.com/ahleongzc/leetcode-live-backend/internal/http_handler/middleware"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/rpc_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/http"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/postgres"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/zerolog"
-	"github.com/ahleongzc/leetcode-live-backend/internal/rpc_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 )
 
