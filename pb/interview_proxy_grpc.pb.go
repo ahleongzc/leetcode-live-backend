@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	InterviewProxy_VerifyCandidate_FullMethodName        = "/InterviewProxy/VerifyCandidate"
 	InterviewProxy_JoinInterview_FullMethodName          = "/InterviewProxy/JoinInterview"
+	InterviewProxy_PauseInterview_FullMethodName         = "/InterviewProxy/PauseInterview"
 	InterviewProxy_ProcessIncomingMessage_FullMethodName = "/InterviewProxy/ProcessIncomingMessage"
 )
 
@@ -31,6 +32,7 @@ type InterviewProxyClient interface {
 	// Unary
 	VerifyCandidate(ctx context.Context, in *VerifyCandidateRequest, opts ...grpc.CallOption) (*VerificationResponse, error)
 	JoinInterview(ctx context.Context, in *JoinInterviewRequest, opts ...grpc.CallOption) (*JoinInterviewResponse, error)
+	PauseInterview(ctx context.Context, in *PauseInterviewRequest, opts ...grpc.CallOption) (*PauseInterviewResponse, error)
 	// Bidirectional streaming
 	ProcessIncomingMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[InterviewMessage, InterviewMessage], error)
 }
@@ -63,6 +65,16 @@ func (c *interviewProxyClient) JoinInterview(ctx context.Context, in *JoinInterv
 	return out, nil
 }
 
+func (c *interviewProxyClient) PauseInterview(ctx context.Context, in *PauseInterviewRequest, opts ...grpc.CallOption) (*PauseInterviewResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PauseInterviewResponse)
+	err := c.cc.Invoke(ctx, InterviewProxy_PauseInterview_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *interviewProxyClient) ProcessIncomingMessage(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[InterviewMessage, InterviewMessage], error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	stream, err := c.cc.NewStream(ctx, &InterviewProxy_ServiceDesc.Streams[0], InterviewProxy_ProcessIncomingMessage_FullMethodName, cOpts...)
@@ -83,6 +95,7 @@ type InterviewProxyServer interface {
 	// Unary
 	VerifyCandidate(context.Context, *VerifyCandidateRequest) (*VerificationResponse, error)
 	JoinInterview(context.Context, *JoinInterviewRequest) (*JoinInterviewResponse, error)
+	PauseInterview(context.Context, *PauseInterviewRequest) (*PauseInterviewResponse, error)
 	// Bidirectional streaming
 	ProcessIncomingMessage(grpc.BidiStreamingServer[InterviewMessage, InterviewMessage]) error
 	mustEmbedUnimplementedInterviewProxyServer()
@@ -100,6 +113,9 @@ func (UnimplementedInterviewProxyServer) VerifyCandidate(context.Context, *Verif
 }
 func (UnimplementedInterviewProxyServer) JoinInterview(context.Context, *JoinInterviewRequest) (*JoinInterviewResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method JoinInterview not implemented")
+}
+func (UnimplementedInterviewProxyServer) PauseInterview(context.Context, *PauseInterviewRequest) (*PauseInterviewResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method PauseInterview not implemented")
 }
 func (UnimplementedInterviewProxyServer) ProcessIncomingMessage(grpc.BidiStreamingServer[InterviewMessage, InterviewMessage]) error {
 	return status.Errorf(codes.Unimplemented, "method ProcessIncomingMessage not implemented")
@@ -161,6 +177,24 @@ func _InterviewProxy_JoinInterview_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _InterviewProxy_PauseInterview_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PauseInterviewRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(InterviewProxyServer).PauseInterview(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: InterviewProxy_PauseInterview_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(InterviewProxyServer).PauseInterview(ctx, req.(*PauseInterviewRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _InterviewProxy_ProcessIncomingMessage_Handler(srv interface{}, stream grpc.ServerStream) error {
 	return srv.(InterviewProxyServer).ProcessIncomingMessage(&grpc.GenericServerStream[InterviewMessage, InterviewMessage]{ServerStream: stream})
 }
@@ -182,6 +216,10 @@ var InterviewProxy_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "JoinInterview",
 			Handler:    _InterviewProxy_JoinInterview_Handler,
+		},
+		{
+			MethodName: "PauseInterview",
+			Handler:    _InterviewProxy_PauseInterview_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -322,6 +322,86 @@ func (*JoinInterviewResponse) Descriptor() ([]byte, []int) {
 	return file_pb_interview_proxy_proto_rawDescGZIP(), []int{4}
 }
 
+type PauseInterviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	InterviewId   uint64                 `protobuf:"varint,1,opt,name=interview_id,json=interviewId,proto3" json:"interview_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseInterviewRequest) Reset() {
+	*x = PauseInterviewRequest{}
+	mi := &file_pb_interview_proxy_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseInterviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseInterviewRequest) ProtoMessage() {}
+
+func (x *PauseInterviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_interview_proxy_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseInterviewRequest.ProtoReflect.Descriptor instead.
+func (*PauseInterviewRequest) Descriptor() ([]byte, []int) {
+	return file_pb_interview_proxy_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PauseInterviewRequest) GetInterviewId() uint64 {
+	if x != nil {
+		return x.InterviewId
+	}
+	return 0
+}
+
+type PauseInterviewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseInterviewResponse) Reset() {
+	*x = PauseInterviewResponse{}
+	mi := &file_pb_interview_proxy_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseInterviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseInterviewResponse) ProtoMessage() {}
+
+func (x *PauseInterviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_interview_proxy_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseInterviewResponse.ProtoReflect.Descriptor instead.
+func (*PauseInterviewResponse) Descriptor() ([]byte, []int) {
+	return file_pb_interview_proxy_proto_rawDescGZIP(), []int{6}
+}
+
 var File_pb_interview_proxy_proto protoreflect.FileDescriptor
 
 const file_pb_interview_proxy_proto_rawDesc = "" +
@@ -344,16 +424,20 @@ const file_pb_interview_proxy_proto_rawDesc = "" +
 	"\x05token\x18\x01 \x01(\tR\x05token\"9\n" +
 	"\x14JoinInterviewRequest\x12!\n" +
 	"\finterview_id\x18\x01 \x01(\x04R\vinterviewId\"\x17\n" +
-	"\x15JoinInterviewResponse*-\n" +
+	"\x15JoinInterviewResponse\":\n" +
+	"\x15PauseInterviewRequest\x12!\n" +
+	"\finterview_id\x18\x01 \x01(\x04R\vinterviewId\"\x18\n" +
+	"\x16PauseInterviewResponse*-\n" +
 	"\x06Source\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\n" +
 	"\n" +
 	"\x06CLIENT\x10\x01\x12\n" +
 	"\n" +
-	"\x06SERVER\x10\x022\xd7\x01\n" +
+	"\x06SERVER\x10\x022\x9a\x02\n" +
 	"\x0eInterviewProxy\x12A\n" +
 	"\x0fVerifyCandidate\x12\x17.VerifyCandidateRequest\x1a\x15.VerificationResponse\x12>\n" +
-	"\rJoinInterview\x12\x15.JoinInterviewRequest\x1a\x16.JoinInterviewResponse\x12B\n" +
+	"\rJoinInterview\x12\x15.JoinInterviewRequest\x1a\x16.JoinInterviewResponse\x12A\n" +
+	"\x0ePauseInterview\x12\x16.PauseInterviewRequest\x1a\x17.PauseInterviewResponse\x12B\n" +
 	"\x16ProcessIncomingMessage\x12\x11.InterviewMessage\x1a\x11.InterviewMessage(\x010\x01B2Z0github.com/ahleongzc/leetcode-live-backend/pb;pbb\x06proto3"
 
 var (
@@ -369,7 +453,7 @@ func file_pb_interview_proxy_proto_rawDescGZIP() []byte {
 }
 
 var file_pb_interview_proxy_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pb_interview_proxy_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_pb_interview_proxy_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_pb_interview_proxy_proto_goTypes = []any{
 	(Source)(0),                    // 0: Source
 	(*InterviewMessage)(nil),       // 1: InterviewMessage
@@ -377,17 +461,21 @@ var file_pb_interview_proxy_proto_goTypes = []any{
 	(*VerifyCandidateRequest)(nil), // 3: VerifyCandidateRequest
 	(*JoinInterviewRequest)(nil),   // 4: JoinInterviewRequest
 	(*JoinInterviewResponse)(nil),  // 5: JoinInterviewResponse
+	(*PauseInterviewRequest)(nil),  // 6: PauseInterviewRequest
+	(*PauseInterviewResponse)(nil), // 7: PauseInterviewResponse
 }
 var file_pb_interview_proxy_proto_depIdxs = []int32{
 	0, // 0: InterviewMessage.source:type_name -> Source
 	3, // 1: InterviewProxy.VerifyCandidate:input_type -> VerifyCandidateRequest
 	4, // 2: InterviewProxy.JoinInterview:input_type -> JoinInterviewRequest
-	1, // 3: InterviewProxy.ProcessIncomingMessage:input_type -> InterviewMessage
-	2, // 4: InterviewProxy.VerifyCandidate:output_type -> VerificationResponse
-	5, // 5: InterviewProxy.JoinInterview:output_type -> JoinInterviewResponse
-	1, // 6: InterviewProxy.ProcessIncomingMessage:output_type -> InterviewMessage
-	4, // [4:7] is the sub-list for method output_type
-	1, // [1:4] is the sub-list for method input_type
+	6, // 3: InterviewProxy.PauseInterview:input_type -> PauseInterviewRequest
+	1, // 4: InterviewProxy.ProcessIncomingMessage:input_type -> InterviewMessage
+	2, // 5: InterviewProxy.VerifyCandidate:output_type -> VerificationResponse
+	5, // 6: InterviewProxy.JoinInterview:output_type -> JoinInterviewResponse
+	7, // 7: InterviewProxy.PauseInterview:output_type -> PauseInterviewResponse
+	1, // 8: InterviewProxy.ProcessIncomingMessage:output_type -> InterviewMessage
+	5, // [5:9] is the sub-list for method output_type
+	1, // [1:5] is the sub-list for method input_type
 	1, // [1:1] is the sub-list for extension type_name
 	1, // [1:1] is the sub-list for extension extendee
 	0, // [0:1] is the sub-list for field type_name
@@ -406,7 +494,7 @@ func file_pb_interview_proxy_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pb_interview_proxy_proto_rawDesc), len(file_pb_interview_proxy_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   5,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

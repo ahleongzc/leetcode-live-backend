@@ -12,7 +12,7 @@ import (
 )
 
 type TranscriptManager interface {
-	FlushCandidateAndRemoveInterview(ctx context.Context, interviewID uint) error
+	FlushAndRemoveInterview(ctx context.Context, interviewID uint) error
 	FlushCandidate(ctx context.Context, interviewID uint) error
 	WriteCandidate(ctx context.Context, interviewID uint, chunk string) error
 	WriteInterviewer(ctx context.Context, interviewID uint, message, url string) error
@@ -69,7 +69,7 @@ func (t *TranscriptManagerImpl) GetTranscriptHistoryInLLMMessageFormat(ctx conte
 }
 
 // FlushAndRemoveInterview implements TranscriptManager.
-func (t *TranscriptManagerImpl) FlushCandidateAndRemoveInterview(ctx context.Context, interviewID uint) error {
+func (t *TranscriptManagerImpl) FlushAndRemoveInterview(ctx context.Context, interviewID uint) error {
 	if err := t.FlushCandidate(ctx, interviewID); err != nil {
 		return err
 	}

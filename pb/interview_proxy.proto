@@ -6,6 +6,7 @@ service InterviewProxy {
     // Unary
     rpc VerifyCandidate(VerifyCandidateRequest) returns (VerificationResponse);
     rpc JoinInterview(JoinInterviewRequest) returns (JoinInterviewResponse);
+    rpc PauseInterview(PauseInterviewRequest) returns (PauseInterviewResponse);
 
     // Bidirectional streaming
     rpc ProcessIncomingMessage(stream InterviewMessage) returns (stream InterviewMessage);
@@ -40,3 +41,9 @@ message JoinInterviewRequest {
 }
 
 message JoinInterviewResponse {}
+
+message PauseInterviewRequest {
+    uint64 interview_id = 1;
+}
+
+message PauseInterviewResponse {}

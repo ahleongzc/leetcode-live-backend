@@ -1,7 +1,7 @@
 .DEFAULT: run
 .PHONY: run build gen vet fmt count train fasttext compile
 
-run: setUpDev gen build
+run: setUpDev compile gen build
 	@if [ ! -f ./bin/model.bin ]; then \
         echo "model.bin not found. Running training..."; \
         make train; \

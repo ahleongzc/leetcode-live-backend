@@ -17,7 +17,7 @@ import (
 type InterviewService interface {
 	HandleInterviewTimesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	PrepareToListen(ctx context.Context, interviewID uint) error
-	PauseCandidateOngoingInterview(ctx context.Context, userID uint) error
+	PauseOngoingInterview(ctx context.Context, interviewID uint) error
 	AbandonCandidateUnfinishedInterview(ctx context.Context, userID uint) error
 	// Returns the one-off token that is used to validate the incoming websocket request
 	SetUpCandidateUnfinishedInterview(ctx context.Context, userID uint) (string, error)
@@ -113,7 +113,7 @@ func (i *InterviewServiceImpl) JoinInterview(ctx context.Context, interviewID ui
 	return nil
 }
 
-// ProcessCandidateRequest implements InterviewService.
+// TODO: Add a new method here to process message that are in the buffer after certain delay for better user experience
 func (i *InterviewServiceImpl) ProcessCandidateMessage(ctx context.Context, interviewID uint, chunk, code string) (*model.InterviewerResponse, error) {
 	if err := i.transcriptManager.WriteCandidate(ctx, interviewID, chunk); err != nil {
 		return nil, err
@@ -178,20 +178,19 @@ func (i *InterviewServiceImpl) HandleInterviewTimesUp(ctx context.Context, inter
 	return msg, nil
 }
 
-// PauseOngoingInterview implements InterviewService.
-func (i *InterviewServiceImpl) PauseCandidateOngoingInterview(ctx context.Context, userID uint) error {
-	interview, err := i.interviewRepo.GetOngoingInterviewByUserID(ctx, userID)
+func (i *InterviewServiceImpl) PauseOngoingInterview(ctx context.Context, interviewID uint) error {
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
 	if err != nil && !errors.Is(err, common.ErrNotFound) {
 		return err
 	}
 
 	if !interview.Exists() {
-		return fmt.Errorf("there is no ongoing interview :%w", common.ErrBadRequest)
+		return fmt.Errorf("there is no ongoing interview :%w", common.ErrNotFound)
 	}
 
 	interview.Pause()
 
-	if err := i.transcriptManager.FlushCandidateAndRemoveInterview(ctx, interview.ID); err != nil {
+	if err := i.transcriptManager.FlushAndRemoveInterview(ctx, interview.ID); err != nil {
 		return err
 	}
 
@@ -240,7 +239,7 @@ func (i *InterviewServiceImpl) AbandonCandidateUnfinishedInterview(ctx context.C
 		return err
 	}
 
-	if err := i.transcriptManager.FlushCandidateAndRemoveInterview(ctx, interview.ID); err != nil {
+	if err := i.transcriptManager.FlushAndRemoveInterview(ctx, interview.ID); err != nil {
 		return err
 	}
 
@@ -667,7 +666,7 @@ func (i *InterviewServiceImpl) answerCandidate(ctx context.Context, interviewID 
 }
 
 func (i *InterviewServiceImpl) timesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error) {
-	if err := i.transcriptManager.FlushCandidateAndRemoveInterview(ctx, interviewID); err != nil {
+	if err := i.transcriptManager.FlushAndRemoveInterview(ctx, interviewID); err != nil {
 		return nil, err
 	}
 

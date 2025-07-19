@@ -202,7 +202,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 		conn.Close(websocket.StatusNormalClosure, "interview ended")
 		cancel()
 	case err := <-errChan:
-		i.interviewService.PauseCandidateOngoingInterview(ctx, interview.UserID)
+		i.interviewService.PauseOngoingInterview(ctx, interview.ID)
 		HandleErrorResponeWebsocket(ctx, conn, err)
 		cancel()
 	}

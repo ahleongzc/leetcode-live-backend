@@ -83,11 +83,21 @@ func (p *ProxyHandler) VerifyCandidate(ctx context.Context, req *pb.VerifyCandid
 }
 
 func (p *ProxyHandler) JoinInterview(ctx context.Context, req *pb.JoinInterviewRequest) (*pb.JoinInterviewResponse, error) {
-	interviewID := req.GetInterviewId()
+	interviewID := uint(req.GetInterviewId())
 
-	if err := p.interviewService.JoinInterview(ctx, uint(interviewID)); err != nil {
+	if err := p.interviewService.JoinInterview(ctx, interviewID); err != nil {
 		return nil, HandleErroResponseRPC(err)
 	}
 
 	return &pb.JoinInterviewResponse{}, nil
+}
+
+func (p *ProxyHandler) PauseInterview(ctx context.Context, req *pb.PauseInterviewRequest) (*pb.PauseInterviewResponse, error) {
+	interviewID := uint(req.GetInterviewId())
+
+	if err := p.interviewService.PauseOngoingInterview(ctx, interviewID); err != nil {
+		return nil, HandleErroResponseRPC(err)
+	}
+
+	return &pb.PauseInterviewResponse{}, nil
 }
