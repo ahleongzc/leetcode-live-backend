@@ -14,6 +14,8 @@ func HandleErroResponseRPC(err error) error {
 		return RPCErrUnauthorized
 	case errors.Is(err, common.ErrForbidden):
 		return RPCErrForbidden
+	case errors.Is(err, common.ErrNotFound):
+		return RPCErrNotFound
 	default:
 		log.Error().Err(err).Msg("error")
 		return RPCErrInternalServerError

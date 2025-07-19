@@ -1,6 +1,7 @@
 package config
 
 import (
+	"strconv"
 	"time"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
@@ -8,6 +9,7 @@ import (
 )
 
 type RPCServerConfig struct {
+	Port              uint
 	Address           string
 	ConnectionTimeout time.Duration
 	MaxRecvMsgSize    uint
@@ -15,12 +17,14 @@ type RPCServerConfig struct {
 }
 
 func LoadRPCServerConfig() *RPCServerConfig {
-	address := "0.0.0.0:" + util.GetEnvOr(common.RPC_PORT_KEY, "8100")
+	port := util.GetEnvUIntOr(common.RPC_PORT_KEY, 8100)
+	address := "0.0.0.0:" + strconv.Itoa(int(port))
 	connectionTimeout := 10 * time.Second
 	maxRecvMsgSize := uint(PAYLOAD_MAX_BYTES)
 	maxSendMsgSize := uint(PAYLOAD_MAX_BYTES)
 
 	return &RPCServerConfig{
+		Port:              port,
 		Address:           address,
 		ConnectionTimeout: connectionTimeout,
 		MaxRecvMsgSize:    maxRecvMsgSize,

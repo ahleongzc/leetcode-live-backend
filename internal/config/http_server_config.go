@@ -10,12 +10,14 @@ import (
 
 type HTTPServerConfig struct {
 	Address      string
+	Port         uint
 	IdleTimeout  time.Duration
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 }
 
 func LoadHTTPServerConfig() *HTTPServerConfig {
+	port := util.GetEnvUIntOr(common.HTTP_PORT_KEY, 8000)
 	address := "0.0.0.0:" + util.GetEnvOr(common.HTTP_PORT_KEY, "8000")
 	idleTimeout := time.Minute
 	readTimeout := 10 * time.Second
@@ -39,6 +41,7 @@ func LoadHTTPServerConfig() *HTTPServerConfig {
 	}
 
 	return &HTTPServerConfig{
+		Port:         port,
 		Address:      address,
 		IdleTimeout:  idleTimeout,
 		ReadTimeout:  readTimeout,

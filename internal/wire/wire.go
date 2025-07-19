@@ -9,8 +9,9 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	"github.com/ahleongzc/leetcode-live-backend/internal/consumer"
 	httphandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler"
-	httpmiddleware "github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
 	rpchandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/rpc_handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/rpc_handler/interceptor"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
@@ -100,7 +101,10 @@ func InitializeApplication() (*app.Application, error) {
 		config.LoadIntentClassificationConfig,
 
 		// Middleware
-		httpmiddleware.NewMiddleware,
+		middleware.NewMiddleware,
+
+		// Interceptor
+		interceptor.NewInterceptor,
 
 		// Housekeeping
 		background.NewHouseKeeper,

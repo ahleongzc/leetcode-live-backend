@@ -15,7 +15,6 @@ import (
 )
 
 type InterviewService interface {
-	ConsumeTokenAndStartInterview(ctx context.Context, token string) (*entity.Interview, error)
 	HandleInterviewTimesUp(ctx context.Context, interviewID uint) (*model.WebSocketMessage, error)
 	PrepareToListen(ctx context.Context, interviewID uint) error
 	PauseCandidateOngoingInterview(ctx context.Context, userID uint) error
@@ -26,6 +25,8 @@ type InterviewService interface {
 	GetCandidateUnfinishedInterview(ctx context.Context, userID uint) (*model.Interview, error)
 	GetHistory(ctx context.Context, userID, limit, offset uint) (*model.InterviewHistory, *model.Pagination, error)
 	SetUpNewInterviewForCandidate(ctx context.Context, userID uint, externalQuestionID, description string) (string, error)
+	JoinInterview(ctx context.Context, interviewID uint) error
+	// Deprecated
 	ProcessIncomingMessage(ctx context.Context, interviewID uint, message *model.WebSocketMessage) (*model.WebSocketMessage, error)
 	ProcessCandidateMessage(ctx context.Context, interviewID uint, chunk, code string) (*model.InterviewerResponse, error)
 }
@@ -73,6 +74,43 @@ type InterviewServiceImpl struct {
 	interviewRepo            repo.InterviewRepo
 	intentClassificationRepo repo.IntentClassificationRepo
 	messageQueueRepo         repo.MessageQueueProducerRepo
+}
+
+func (i *InterviewServiceImpl) JoinInterview(ctx context.Context, interviewID uint) error {
+	interview, err := i.interviewRepo.GetByID(ctx, interviewID)
+	if err != nil {
+		return err
+	}
+
+	if !interview.Exists() {
+		return fmt.Errorf("interview not found: %w", common.ErrNotFound)
+	}
+
+	if !interview.ReviewExists() {
+		review := entity.NewReview().
+			SetFeedback("The interview is still ongoing")
+
+		reviewID, err := i.reviewRepo.Create(ctx, review)
+		if err != nil {
+			return nil
+		}
+
+		interview.SetReviewID(reviewID)
+	}
+
+	if !interview.HasStarted() {
+		interview.Start()
+	}
+
+	interview.
+		SetOngoing().
+		ResetSetupCount()
+
+	if err := i.interviewRepo.Update(ctx, interview); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ProcessCandidateRequest implements InterviewService.

@@ -3,8 +3,12 @@ syntax = "proto3";
 option go_package = "github.com/ahleongzc/leetcode-live-backend/pb;pb";
 
 service InterviewProxy {
-    rpc VerifyCandidate(VerifyCandidateRequest) returns (VerificationResponse) {}
-    rpc ProcessIncomingMessage(stream InterviewMessage) returns (stream InterviewMessage) {}
+    // Unary
+    rpc VerifyCandidate(VerifyCandidateRequest) returns (VerificationResponse);
+    rpc JoinInterview(JoinInterviewRequest) returns (JoinInterviewResponse);
+
+    // Bidirectional streaming
+    rpc ProcessIncomingMessage(stream InterviewMessage) returns (stream InterviewMessage);
 }
 
 enum Source {
@@ -16,21 +20,23 @@ enum Source {
 message InterviewMessage {
     Source source = 1;
     uint64 interview_id = 2;
-    string chunk = 3;
-    string code = 4;
-    string url = 5;
+    optional string chunk = 3;
+    optional string code = 4;
+    optional string url = 5;
     bool end = 6;
 }
 
 
 message VerificationResponse {
-    Interview interview = 1;
+    optional uint64 interview_id = 1;
 }
 
 message VerifyCandidateRequest {
     string token = 1;
 }
 
-message Interview {
-    uint64 id = 1;
+message JoinInterviewRequest {
+    uint64 interview_id = 1;
 }
+
+message JoinInterviewResponse {}

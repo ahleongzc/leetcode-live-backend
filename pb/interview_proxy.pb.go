@@ -74,9 +74,9 @@ type InterviewMessage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Source        Source                 `protobuf:"varint,1,opt,name=source,proto3,enum=Source" json:"source,omitempty"`
 	InterviewId   uint64                 `protobuf:"varint,2,opt,name=interview_id,json=interviewId,proto3" json:"interview_id,omitempty"`
-	Chunk         string                 `protobuf:"bytes,3,opt,name=chunk,proto3" json:"chunk,omitempty"`
-	Code          string                 `protobuf:"bytes,4,opt,name=code,proto3" json:"code,omitempty"`
-	Url           string                 `protobuf:"bytes,5,opt,name=url,proto3" json:"url,omitempty"`
+	Chunk         *string                `protobuf:"bytes,3,opt,name=chunk,proto3,oneof" json:"chunk,omitempty"`
+	Code          *string                `protobuf:"bytes,4,opt,name=code,proto3,oneof" json:"code,omitempty"`
+	Url           *string                `protobuf:"bytes,5,opt,name=url,proto3,oneof" json:"url,omitempty"`
 	End           bool                   `protobuf:"varint,6,opt,name=end,proto3" json:"end,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -127,22 +127,22 @@ func (x *InterviewMessage) GetInterviewId() uint64 {
 }
 
 func (x *InterviewMessage) GetChunk() string {
-	if x != nil {
-		return x.Chunk
+	if x != nil && x.Chunk != nil {
+		return *x.Chunk
 	}
 	return ""
 }
 
 func (x *InterviewMessage) GetCode() string {
-	if x != nil {
-		return x.Code
+	if x != nil && x.Code != nil {
+		return *x.Code
 	}
 	return ""
 }
 
 func (x *InterviewMessage) GetUrl() string {
-	if x != nil {
-		return x.Url
+	if x != nil && x.Url != nil {
+		return *x.Url
 	}
 	return ""
 }
@@ -156,7 +156,7 @@ func (x *InterviewMessage) GetEnd() bool {
 
 type VerificationResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Interview     *Interview             `protobuf:"bytes,1,opt,name=interview,proto3" json:"interview,omitempty"`
+	InterviewId   *uint64                `protobuf:"varint,1,opt,name=interview_id,json=interviewId,proto3,oneof" json:"interview_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -191,11 +191,11 @@ func (*VerificationResponse) Descriptor() ([]byte, []int) {
 	return file_pb_interview_proxy_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *VerificationResponse) GetInterview() *Interview {
-	if x != nil {
-		return x.Interview
+func (x *VerificationResponse) GetInterviewId() uint64 {
+	if x != nil && x.InterviewId != nil {
+		return *x.InterviewId
 	}
-	return nil
+	return 0
 }
 
 type VerifyCandidateRequest struct {
@@ -242,27 +242,27 @@ func (x *VerifyCandidateRequest) GetToken() string {
 	return ""
 }
 
-type Interview struct {
+type JoinInterviewRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+	InterviewId   uint64                 `protobuf:"varint,1,opt,name=interview_id,json=interviewId,proto3" json:"interview_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *Interview) Reset() {
-	*x = Interview{}
+func (x *JoinInterviewRequest) Reset() {
+	*x = JoinInterviewRequest{}
 	mi := &file_pb_interview_proxy_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *Interview) String() string {
+func (x *JoinInterviewRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*Interview) ProtoMessage() {}
+func (*JoinInterviewRequest) ProtoMessage() {}
 
-func (x *Interview) ProtoReflect() protoreflect.Message {
+func (x *JoinInterviewRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_pb_interview_proxy_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -274,46 +274,87 @@ func (x *Interview) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use Interview.ProtoReflect.Descriptor instead.
-func (*Interview) Descriptor() ([]byte, []int) {
+// Deprecated: Use JoinInterviewRequest.ProtoReflect.Descriptor instead.
+func (*JoinInterviewRequest) Descriptor() ([]byte, []int) {
 	return file_pb_interview_proxy_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *Interview) GetId() uint64 {
+func (x *JoinInterviewRequest) GetInterviewId() uint64 {
 	if x != nil {
-		return x.Id
+		return x.InterviewId
 	}
 	return 0
+}
+
+type JoinInterviewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *JoinInterviewResponse) Reset() {
+	*x = JoinInterviewResponse{}
+	mi := &file_pb_interview_proxy_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *JoinInterviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*JoinInterviewResponse) ProtoMessage() {}
+
+func (x *JoinInterviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_pb_interview_proxy_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use JoinInterviewResponse.ProtoReflect.Descriptor instead.
+func (*JoinInterviewResponse) Descriptor() ([]byte, []int) {
+	return file_pb_interview_proxy_proto_rawDescGZIP(), []int{4}
 }
 
 var File_pb_interview_proxy_proto protoreflect.FileDescriptor
 
 const file_pb_interview_proxy_proto_rawDesc = "" +
 	"\n" +
-	"\x18pb/interview_proxy.proto\"\xa4\x01\n" +
+	"\x18pb/interview_proxy.proto\"\xce\x01\n" +
 	"\x10InterviewMessage\x12\x1f\n" +
 	"\x06source\x18\x01 \x01(\x0e2\a.SourceR\x06source\x12!\n" +
-	"\finterview_id\x18\x02 \x01(\x04R\vinterviewId\x12\x14\n" +
-	"\x05chunk\x18\x03 \x01(\tR\x05chunk\x12\x12\n" +
-	"\x04code\x18\x04 \x01(\tR\x04code\x12\x10\n" +
-	"\x03url\x18\x05 \x01(\tR\x03url\x12\x10\n" +
-	"\x03end\x18\x06 \x01(\bR\x03end\"@\n" +
-	"\x14VerificationResponse\x12(\n" +
-	"\tinterview\x18\x01 \x01(\v2\n" +
-	".InterviewR\tinterview\".\n" +
+	"\finterview_id\x18\x02 \x01(\x04R\vinterviewId\x12\x19\n" +
+	"\x05chunk\x18\x03 \x01(\tH\x00R\x05chunk\x88\x01\x01\x12\x17\n" +
+	"\x04code\x18\x04 \x01(\tH\x01R\x04code\x88\x01\x01\x12\x15\n" +
+	"\x03url\x18\x05 \x01(\tH\x02R\x03url\x88\x01\x01\x12\x10\n" +
+	"\x03end\x18\x06 \x01(\bR\x03endB\b\n" +
+	"\x06_chunkB\a\n" +
+	"\x05_codeB\x06\n" +
+	"\x04_url\"O\n" +
+	"\x14VerificationResponse\x12&\n" +
+	"\finterview_id\x18\x01 \x01(\x04H\x00R\vinterviewId\x88\x01\x01B\x0f\n" +
+	"\r_interview_id\".\n" +
 	"\x16VerifyCandidateRequest\x12\x14\n" +
-	"\x05token\x18\x01 \x01(\tR\x05token\"\x1b\n" +
-	"\tInterview\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\x04R\x02id*-\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\"9\n" +
+	"\x14JoinInterviewRequest\x12!\n" +
+	"\finterview_id\x18\x01 \x01(\x04R\vinterviewId\"\x17\n" +
+	"\x15JoinInterviewResponse*-\n" +
 	"\x06Source\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\n" +
 	"\n" +
 	"\x06CLIENT\x10\x01\x12\n" +
 	"\n" +
-	"\x06SERVER\x10\x022\x9b\x01\n" +
-	"\x0eInterviewProxy\x12C\n" +
-	"\x0fVerifyCandidate\x12\x17.VerifyCandidateRequest\x1a\x15.VerificationResponse\"\x00\x12D\n" +
-	"\x16ProcessIncomingMessage\x12\x11.InterviewMessage\x1a\x11.InterviewMessage\"\x00(\x010\x01B2Z0github.com/ahleongzc/leetcode-live-backend/pb;pbb\x06proto3"
+	"\x06SERVER\x10\x022\xd7\x01\n" +
+	"\x0eInterviewProxy\x12A\n" +
+	"\x0fVerifyCandidate\x12\x17.VerifyCandidateRequest\x1a\x15.VerificationResponse\x12>\n" +
+	"\rJoinInterview\x12\x15.JoinInterviewRequest\x1a\x16.JoinInterviewResponse\x12B\n" +
+	"\x16ProcessIncomingMessage\x12\x11.InterviewMessage\x1a\x11.InterviewMessage(\x010\x01B2Z0github.com/ahleongzc/leetcode-live-backend/pb;pbb\x06proto3"
 
 var (
 	file_pb_interview_proxy_proto_rawDescOnce sync.Once
@@ -328,26 +369,28 @@ func file_pb_interview_proxy_proto_rawDescGZIP() []byte {
 }
 
 var file_pb_interview_proxy_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_pb_interview_proxy_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_pb_interview_proxy_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_pb_interview_proxy_proto_goTypes = []any{
 	(Source)(0),                    // 0: Source
 	(*InterviewMessage)(nil),       // 1: InterviewMessage
 	(*VerificationResponse)(nil),   // 2: VerificationResponse
 	(*VerifyCandidateRequest)(nil), // 3: VerifyCandidateRequest
-	(*Interview)(nil),              // 4: Interview
+	(*JoinInterviewRequest)(nil),   // 4: JoinInterviewRequest
+	(*JoinInterviewResponse)(nil),  // 5: JoinInterviewResponse
 }
 var file_pb_interview_proxy_proto_depIdxs = []int32{
 	0, // 0: InterviewMessage.source:type_name -> Source
-	4, // 1: VerificationResponse.interview:type_name -> Interview
-	3, // 2: InterviewProxy.VerifyCandidate:input_type -> VerifyCandidateRequest
+	3, // 1: InterviewProxy.VerifyCandidate:input_type -> VerifyCandidateRequest
+	4, // 2: InterviewProxy.JoinInterview:input_type -> JoinInterviewRequest
 	1, // 3: InterviewProxy.ProcessIncomingMessage:input_type -> InterviewMessage
 	2, // 4: InterviewProxy.VerifyCandidate:output_type -> VerificationResponse
-	1, // 5: InterviewProxy.ProcessIncomingMessage:output_type -> InterviewMessage
-	4, // [4:6] is the sub-list for method output_type
-	2, // [2:4] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	5, // 5: InterviewProxy.JoinInterview:output_type -> JoinInterviewResponse
+	1, // 6: InterviewProxy.ProcessIncomingMessage:output_type -> InterviewMessage
+	4, // [4:7] is the sub-list for method output_type
+	1, // [1:4] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_pb_interview_proxy_proto_init() }
@@ -355,13 +398,15 @@ func file_pb_interview_proxy_proto_init() {
 	if File_pb_interview_proxy_proto != nil {
 		return
 	}
+	file_pb_interview_proxy_proto_msgTypes[0].OneofWrappers = []any{}
+	file_pb_interview_proxy_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_pb_interview_proxy_proto_rawDesc), len(file_pb_interview_proxy_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

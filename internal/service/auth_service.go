@@ -18,24 +18,50 @@ type AuthService interface {
 	Login(ctx context.Context, email, password string) (string, error)
 	Logout(ctx context.Context, token string) error
 	GenerateRandomToken() string
+	// Returns the interview ID
+	ValidateAndConsumeInterviewToken(ctx context.Context, interviewToken string) (uint, error)
 	// These two functions are only called by middleware
 	ValidateAndRefreshSessionToken(ctx context.Context, token string) (string, error)
 	GetUserIDFromSessionToken(ctx context.Context, token string) (uint, error)
 }
 
 func NewAuthService(
-	sessionRepo repo.SessionRepo,
 	userRepo repo.UserRepo,
+	sessionRepo repo.SessionRepo,
+	interviewRepo repo.InterviewRepo,
 ) AuthService {
 	return &AuthServiceImpl{
-		sessionRepo: sessionRepo,
-		userRepo:    userRepo,
+		userRepo:      userRepo,
+		sessionRepo:   sessionRepo,
+		interviewRepo: interviewRepo,
 	}
 }
 
 type AuthServiceImpl struct {
-	sessionRepo repo.SessionRepo
-	userRepo    repo.UserRepo
+	userRepo      repo.UserRepo
+	sessionRepo   repo.SessionRepo
+	interviewRepo repo.InterviewRepo
+}
+
+// ValidateAndConsumeInterviewToken implements AuthService.
+func (a *AuthServiceImpl) ValidateAndConsumeInterviewToken(ctx context.Context, interviewToken string) (uint, error) {
+	interview, err := a.interviewRepo.GetByToken(ctx, interviewToken)
+	if err != nil {
+		return 0, err
+	}
+
+	if !interview.Exists() {
+		return 0, common.ErrUnauthorized
+	}
+
+	interview.ConsumeToken()
+
+	err = a.interviewRepo.Update(ctx, interview)
+	if err != nil {
+		return 0, err
+	}
+
+	return interview.ID, nil
 }
 
 func (a *AuthServiceImpl) GenerateRandomToken() string {

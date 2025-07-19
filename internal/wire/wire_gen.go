@@ -14,6 +14,7 @@ import (
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
 	"github.com/ahleongzc/leetcode-live-backend/internal/handler/rpc_handler"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/rpc_handler/interceptor"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/cloudflare"
 	"github.com/ahleongzc/leetcode-live-backend/internal/repo/fasttext"
@@ -35,10 +36,11 @@ func InitializeApplication() (*app.Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	sessionRepo := repo.NewSessionRepo(db)
 	userRepo := repo.NewUserRepo(db)
-	authService := service.NewAuthService(sessionRepo, userRepo)
-	middleware := httpmiddleware.NewMiddleware(authService, logger)
+	sessionRepo := repo.NewSessionRepo(db)
+	interviewRepo := repo.NewInterviewRepo(db)
+	authService := service.NewAuthService(userRepo, sessionRepo, interviewRepo)
+	middlewareMiddleware := middleware.NewMiddleware(authService, logger)
 	httpServerConfig := config.LoadHTTPServerConfig()
 	authHandler := httphandler.NewAuthHandler(authService)
 	settingRepo := repo.NewSettingRepo(db)
@@ -67,7 +69,6 @@ func InitializeApplication() (*app.Application, error) {
 	}
 	aiUseCase := service.NewAIUseCase(ttsRepo, llmRepo)
 	reviewRepo := repo.NewReviewRepo(db)
-	interviewRepo := repo.NewInterviewRepo(db)
 	reviewService := service.NewReviewService(aiUseCase, reviewRepo, interviewRepo, transcriptManager)
 	questionRepo := repo.NewQuestionRepo(db)
 	questionService := service.NewQuestionService(questionRepo)
@@ -96,10 +97,11 @@ func InitializeApplication() (*app.Application, error) {
 	intentClassificationRepo := repo.NewIntentClassificationRepo(fastTextPool)
 	interviewService := service.NewInterviewService(aiUseCase, userService, authService, reviewService, questionService, transcriptManager, fileRepo, reviewRepo, questionRepo, interviewRepo, messageQueueRepo, intentClassificationRepo)
 	interviewHandler := httphandler.NewInterviewHandler(websocketConfig, authService, interviewService, logger)
-	httpServer := app.NewHTTPServer(logger, middleware, httpServerConfig, authHandler, userHandler, healthHandler, interviewHandler)
+	httpServer := app.NewHTTPServer(logger, middlewareMiddleware, httpServerConfig, authHandler, userHandler, healthHandler, interviewHandler)
 	rpcServerConfig := config.LoadRPCServerConfig()
-	proxyHandler := rpchandler.NewProxyHandler(interviewService)
-	rpcServer := app.NewRPCServer(logger, rpcServerConfig, proxyHandler)
+	proxyHandler := rpchandler.NewProxyHandler(authService, interviewService)
+	interceptorInterceptor := interceptor.NewInterceptor(logger)
+	rpcServer := app.NewRPCServer(logger, rpcServerConfig, proxyHandler, interceptorInterceptor)
 	reviewConsumer := consumer.NewReviewConsumer(reviewService, messageQueueRepo, logger)
 	houseKeeper := background.NewHouseKeeper(sessionRepo, logger)
 	inMemoryQueueConfig, err := config.LoadInMemoryQueueConfig()

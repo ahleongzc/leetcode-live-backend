@@ -8,7 +8,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
 	httphandler "github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler"
-	httpmiddleware "github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
+	"github.com/ahleongzc/leetcode-live-backend/internal/handler/http_handler/middleware"
 
 	"github.com/justinas/alice"
 	"github.com/rs/zerolog"
@@ -17,7 +17,7 @@ import (
 type HTTPServer struct {
 	srv              *http.Server
 	logger           *zerolog.Logger
-	middleware       *httpmiddleware.Middleware
+	middleware       *middleware.Middleware
 	httpServerConfig *config.HTTPServerConfig
 
 	authHandler      *httphandler.AuthHandler
@@ -28,7 +28,7 @@ type HTTPServer struct {
 
 func NewHTTPServer(
 	logger *zerolog.Logger,
-	middleware *httpmiddleware.Middleware,
+	middleware *middleware.Middleware,
 	httpServerConfig *config.HTTPServerConfig,
 
 	authHandler *httphandler.AuthHandler,
@@ -65,7 +65,7 @@ func (hs *HTTPServer) Serve(errChan chan error) *HTTPServer {
 		}
 	}()
 
-	hs.logger.Info().Msg(fmt.Sprintf("http server has started at %s", time.Now().Format("2006-01-02 15:04:05")))
+	hs.logger.Info().Msg(fmt.Sprintf("http server has started at port %d on %s", hs.httpServerConfig.Port, time.Now().Format("2006-01-02 15:04:05")))
 	return hs
 }
 
@@ -92,8 +92,6 @@ func (hs *HTTPServer) setUpHandlers() http.Handler {
 
 	mux.HandleFunc("POST /v1/auth/login", hs.authHandler.Login)
 	mux.HandleFunc("POST /v1/user/register", hs.userHandler.Register)
-
-	mux.HandleFunc("GET /v1/interview/join", hs.interviewHandler.JoinInterview)
 	// ---
 
 	// --- These routes require X-Session-Token to be in the headers

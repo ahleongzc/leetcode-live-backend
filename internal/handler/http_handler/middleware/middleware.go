@@ -1,4 +1,4 @@
-package httpmiddleware
+package middleware
 
 import (
 	"fmt"
@@ -103,9 +103,9 @@ func (m *Middleware) RecoverPanic(next http.Handler) http.Handler {
 				stackTrace := debug.Stack()
 				m.logger.Error().
 					Interface("panic", err).
-					Bytes("stackTrace", stackTrace).
+					Bytes("stack_trace", stackTrace).
 					Msg("panic recovered in request")
-				httphandler.HandleErrorResponseHTTP(w, fmt.Errorf("%w", common.ErrInternalServerError))
+				httphandler.HandleErrorResponseHTTP(w, common.ErrInternalServerError)
 			}
 		}()
 

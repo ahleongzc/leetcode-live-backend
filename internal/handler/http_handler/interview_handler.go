@@ -8,6 +8,7 @@ import (
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/common"
 	"github.com/ahleongzc/leetcode-live-backend/internal/config"
+	"github.com/ahleongzc/leetcode-live-backend/internal/domain/entity"
 	"github.com/ahleongzc/leetcode-live-backend/internal/domain/model"
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
 	"github.com/ahleongzc/leetcode-live-backend/internal/util"
@@ -171,12 +172,7 @@ func (i *InterviewHandler) JoinInterview(w http.ResponseWriter, r *http.Request)
 	ctx, cancel := context.WithCancel(r.Context())
 	defer cancel()
 
-	token := r.URL.Query().Get("token")
-	interview, err := i.interviewService.ConsumeTokenAndStartInterview(ctx, token)
-	if err != nil {
-		HandleErrorResponseHTTP(w, err)
-		return
-	}
+	interview := entity.NewInterview()
 
 	conn, err := websocket.Accept(w, r, i.websocketConfig.AcceptOptions)
 	if err != nil {

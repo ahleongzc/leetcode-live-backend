@@ -5,19 +5,23 @@ import (
 	"io"
 
 	"github.com/ahleongzc/leetcode-live-backend/internal/service"
+	"github.com/ahleongzc/leetcode-live-backend/internal/util"
 	"github.com/ahleongzc/leetcode-live-backend/pb"
 )
 
 func NewProxyHandler(
+	authService service.AuthService,
 	interviewService service.InterviewService,
 ) *ProxyHandler {
 	return &ProxyHandler{
+		authService:      authService,
 		interviewService: interviewService,
 	}
 }
 
 type ProxyHandler struct {
 	pb.UnimplementedInterviewProxyServer
+	authService      service.AuthService
 	interviewService service.InterviewService
 }
 
@@ -50,7 +54,7 @@ func (p *ProxyHandler) ProcessIncomingMessage(stream pb.InterviewProxy_ProcessIn
 
 		out := &pb.InterviewMessage{
 			Source: pb.Source_SERVER,
-			Url:    res.URL,
+			Url:    util.ToPtr(res.URL),
 			End:    res.End,
 		}
 
@@ -66,16 +70,24 @@ func (p *ProxyHandler) VerifyCandidate(ctx context.Context, req *pb.VerifyCandid
 		return nil, RPCErrUnauthorized
 	}
 
-	interview, err := p.interviewService.ConsumeTokenAndStartInterview(ctx, token)
+	interviewID, err := p.authService.ValidateAndConsumeInterviewToken(ctx, token)
 	if err != nil {
 		return nil, HandleErroResponseRPC(err)
 	}
 
 	resp := &pb.VerificationResponse{
-		Interview: &pb.Interview{
-			Id: uint64(interview.ID),
-		},
+		InterviewId: util.ToPtr(uint64(interviewID)),
 	}
 
 	return resp, nil
+}
+
+func (p *ProxyHandler) JoinInterview(ctx context.Context, req *pb.JoinInterviewRequest) (*pb.JoinInterviewResponse, error) {
+	interviewID := req.GetInterviewId()
+
+	if err := p.interviewService.JoinInterview(ctx, uint(interviewID)); err != nil {
+		return nil, HandleErroResponseRPC(err)
+	}
+
+	return &pb.JoinInterviewResponse{}, nil
 }

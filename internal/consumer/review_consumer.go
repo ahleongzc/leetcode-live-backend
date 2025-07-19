@@ -43,8 +43,8 @@ func (r *ReviewConsumer) ConsumeAndProcess(ctx context.Context, workerCount uint
 					stackTrace := debug.Stack()
 					r.logger.Error().
 						Interface("panic", err).
-						Bytes("stackTrace", stackTrace).
-						Uint("workerNumber", i).
+						Bytes("stack_trace", stackTrace).
+						Uint("worker_number", i).
 						Msg("panic recovered in review consumer")
 				}
 			}()
@@ -67,7 +67,7 @@ func (r *ReviewConsumer) processMessage(ctx context.Context, delivery *model.Del
 			stackTrace := debug.Stack()
 			r.logger.Error().
 				Interface("panic", err).
-				Bytes("stackTrace", stackTrace).
+				Bytes("stack_trace", stackTrace).
 				Msg("panic recovered when consuming messages")
 
 			if err := delivery.Nack(true); err != nil {

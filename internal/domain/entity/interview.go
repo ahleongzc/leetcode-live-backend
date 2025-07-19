@@ -113,11 +113,12 @@ func (i *Interview) SetReviewID(reviewID uint) *Interview {
 	return i
 }
 
-func (i *Interview) ResetSetupCount() {
+func (i *Interview) ResetSetupCount() *Interview {
 	if i == nil {
-		return
+		return nil
 	}
 	i.SetSetupCount(0)
+	return i
 }
 
 func (i *Interview) Pause() *Interview {

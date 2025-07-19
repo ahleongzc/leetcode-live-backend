@@ -8,5 +8,6 @@ import (
 var (
 	RPCErrUnauthorized        = status.Error(codes.Unauthenticated, "unauthorized access")
 	RPCErrForbidden           = status.Error(codes.PermissionDenied, "access forbidden")
+	RPCErrNotFound            = status.Error(codes.NotFound, "not found")
 	RPCErrInternalServerError = status.Error(codes.Internal, "internal server error")
 )
